@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>Leggende di Valmora</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<style>
+  html,body{margin:0;padding:0;background:#10141f;height:100%;overflow:hidden;
+    -webkit-user-select:none;user-select:none;touch-action:none;font-family:monospace}
+  #wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+  canvas{image-rendering:pixelated;image-rendering:crisp-edges;background:#000;
+    box-shadow:0 0 40px rgba(80,120,255,.15);border-radius:4px}
+
+  /* ── Touch overlay ── */
+  #touch{position:fixed;inset:0;pointer-events:none;display:none;z-index:10}
+
+  /* Joystick sinistro */
+  #joy-base{
+    position:absolute; left:28px; bottom:48px;
+    width:110px; height:110px; border-radius:50%;
+    background:rgba(255,255,255,.07);
+    border:3px solid rgba(255,255,255,.18);
+    pointer-events:auto; touch-action:none;
+  }
+  #joy-knob{
+    position:absolute; left:50%; top:50%;
+    width:48px; height:48px; border-radius:50%;
+    background:radial-gradient(circle at 38% 35%, rgba(255,255,255,.35), rgba(255,255,255,.08));
+    border:3px solid rgba(255,255,255,.35);
+    transform:translate(-50%,-50%);
+    pointer-events:none;
+    box-shadow:0 4px 12px rgba(0,0,0,.4);
+  }
+
+  /* Pulsanti azione (destra) */
+  #btns-right{
+    position:absolute; right:24px; bottom:44px;
+    width:120px; height:110px;
+    pointer-events:none;
+  }
+  .abtn{
+    position:absolute; pointer-events:auto; touch-action:none;
+    width:52px; height:52px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-weight:900; font-size:18px; letter-spacing:0;
+    -webkit-tap-highlight-color:transparent;
+    box-shadow:0 6px 0 rgba(0,0,0,.45), 0 8px 16px rgba(0,0,0,.35);
+    transition:box-shadow .05s, transform .05s;
+    border:none; outline:none;
+  }
+  .abtn:active{ box-shadow:0 2px 0 rgba(0,0,0,.45); transform:translateY(3px); }
+  #b-a{
+    background:radial-gradient(circle at 40% 35%, #ff6060, #cc1818);
+    color:#fff; right:0; bottom:36px;
+  }
+  #b-b{
+    background:radial-gradient(circle at 40% 35%, #ffe060, #c89000);
+    color:#705000; left:0; bottom:0;
+  }
+
+  /* START/SELECT */
+  #btns-center{
+    position:absolute; left:50%; bottom:14px;
+    transform:translateX(-50%);
+    display:flex; gap:12px; pointer-events:none;
+  }
+  .cbtn{
+    pointer-events:auto; touch-action:none;
+    background:rgba(255,255,255,.10); border:2px solid rgba(255,255,255,.22);
+    border-radius:20px; color:rgba(255,255,255,.75);
+    font-size:11px; font-weight:bold; letter-spacing:.5px;
+    padding:6px 14px; -webkit-tap-highlight-color:transparent;
+  }
+  .cbtn:active{ background:rgba(255,255,255,.25); }
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="game" width="240" height="160"></canvas></div>
+
+<div id="touch">
+  <!-- Joystick analogico sinistra -->
+  <div id="joy-base"><div id="joy-knob"></div></div>
+
+  <!-- Pulsanti A/B destra -->
+  <div id="btns-right">
+    <button class="abtn" id="b-a">A</button>
+    <button class="abtn" id="b-b">B</button>
+  </div>
+
+  <!-- Start/Select centro -->
+  <div id="btns-center">
+    <button class="cbtn" id="b-select">SELECT</button>
+    <button class="cbtn" id="b-start">START</button>
+  </div>
+</div>
+
+<script src="js/engine.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/sprites.js"></script>
+<script src="js/data.js"></script>
+<script src="js/maps.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/menus.js"></script>
+<script src="js/battle.js"></script>
+<script src="js/overworld.js"></script>
+<script src="js/main.js"></script>
+
+<script>
+/* ── Joystick + pulsanti touch ── */
+(function() {
+  if (!('ontouchstart' in window)) return;
+  document.getElementById('touch').style.display = 'block';
+
+  const held = Input.held;
+
+  /* — Joystick — */
+  const base  = document.getElementById('joy-base');
+  const knob  = document.getElementById('joy-knob');
+  const RADIUS = 30; // max spostamento knob (px)
+  let joyId = null;
+
+  function joyDir(dx, dy) {
+    const DEAD = 12; // zona morta
+    held.left  = dx < -DEAD;
+    held.right = dx >  DEAD;
+    held.up    = dy < -DEAD;
+    held.down  = dy >  DEAD;
+  }
+
+  function joyMove(e) {
+    if (joyId === null) return;
+    for (const t of e.changedTouches) {
+      if (t.identifier !== joyId) continue;
+      const r  = base.getBoundingClientRect();
+      const cx = r.left + r.width  / 2;
+      const cy = r.top  + r.height / 2;
+      let dx = t.clientX - cx;
+      let dy = t.clientY - cy;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist > RADIUS) { dx = dx/dist*RADIUS; dy = dy/dist*RADIUS; }
+      knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+      joyDir(dx, dy);
+    }
+  }
+
+  base.addEventListener('touchstart', e => {
+    e.preventDefault();
+    if (joyId !== null) return;
+    joyId = e.changedTouches[0].identifier;
+    knob.style.transform = 'translate(-50%,-50%)';
+    joyDir(0, 0);
+  }, { passive: false });
+
+  base.addEventListener('touchmove', e => { e.preventDefault(); joyMove(e); }, { passive: false });
+
+  function joyEnd(e) {
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+      if (t.identifier === joyId) {
+        joyId = null;
+        knob.style.transform = 'translate(-50%,-50%)';
+        held.left = held.right = held.up = held.down = false;
+      }
+    }
+  }
+  base.addEventListener('touchend',    joyEnd, { passive: false });
+  base.addEventListener('touchcancel', joyEnd, { passive: false });
+
+  /* — Pulsanti A / B / START / SELECT — */
+  function btn(id, key) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('touchstart',  e => { e.preventDefault(); held[key] = true;  }, { passive: false });
+    el.addEventListener('touchend',    e => { e.preventDefault(); held[key] = false; }, { passive: false });
+    el.addEventListener('touchcancel', e => { e.preventDefault(); held[key] = false; }, { passive: false });
+  }
+  btn('b-a', 'a'); btn('b-b', 'b');
+  btn('b-start', 'start'); btn('b-select', 'b'); // select = B
+})();
+</script>
+</body>
+</html>
