@@ -1,152 +1,67 @@
 # Leggende di Valmora
 
-Un RPG monster-collector browser-based ispirato a **Pokémon FireRed**, sviluppato interamente in JavaScript vanilla senza dipendenze esterne. Gira a risoluzione GBA nativa (240×160) scalata via Canvas 2D, con grafica pixel art procedurale, sistema di battaglia a turni, mappa esplorabile e supporto mobile con joystick touch.
+Un gioco di esplorazione e cattura di creature in 3D, nel browser, giocabile anche da iPhone.
+Mondo aperto con nove regioni, giorno e notte, erba alta, lotte a turni e cattura dei Velmon.
+Creature, regioni e nomi sono tutti originali.
 
-**Gioca online:** https://luca-grella.github.io/leggende-di-valmora/
+**Gioca:** https://luca-grella.github.io/leggende-di-valmora/
 
----
+La vecchia versione 2D (stile GBA) è salvata nel tag [`v1-2d`](../../tree/v1-2d).
 
-## Architettura tecnica
+## Cosa c'è
 
-### Stack
+- **Mondo aperto di circa 6 × 6 km**, generato a pezzi da 64 m mentre cammini, diviso in nove regioni
+  con paesaggio, colori, alberi e Velmon propri:
 
-| Layer | Tecnologia |
-|---|---|
-| Rendering | Canvas 2D API, risoluzione 240×160 × SCALE (devicePixelRatio-aware) |
-| Audio | Web Audio API (oscillatori procedurali, nessun file audio esterno) |
-| Grafica | Pixel art completamente procedurale (nessun file immagine) |
-| Persistenza | `localStorage` (salvataggio automatico) |
-| Deploy | GitHub Pages (static, zero server) |
+  | | | |
+  |---|---|---|
+  | Picchi Gelidi · *Borgo Cristallo* | Brughiera di Nebbia · *Castelfosco* | Selva di Giada · *Borgo Muschio* |
+  | Costa Fiorita · *Villa Petalo* | **Valle Aurora** · *Borgo Alba* (inizio) | Piana Fulgida · *Città Fulgida* |
+  | Altopiano Ramato · *Rocca Ramata* | Arcipelago Corallo · *Porto Corallo* | Isole Solari · *Baia del Sole* |
 
-### Struttura file
+- Strade che collegano i paesi, mare con onde, isole raggiungibili a nuoto.
+- **Ciclo giorno/notte** di 20 minuti: di notte si accendono finestre e lampioni ed escono più Velmon di tipo Spettro.
+- Ogni paese ha un **Centro Cura** (cura la squadra e ricarica le Sfere) e abitanti con cui parlare.
+- **19 specie di Velmon** in 11 tipi, con tabella delle efficacie, mosse imparate salendo di livello ed esperienza.
+- **Lotte a turni** nel punto dell'incontro, **cattura con le Sfere**, squadra di 6 e Box per gli altri.
+- Salvataggio automatico nel browser.
 
-```
-index.html          Entry point, HTML shell, CSS, joystick touch JS
-js/
-  engine.js         Core: canvas, game loop (RAF), input, fade, font, UI box
-  audio.js          Sintetizzatore audio procedurale (SFX + musica chiptune)
-  sprites.js        Generatore grafica: tile 16×16, sprite personaggi, MonArt
-  data.js           Database specie Velmon, mosse, oggetti, formule stats
-  maps.js           Definizione mappe (tile grid, NPC, warp, oggetti, eventi)
-  ui.js             Sistema UI a stack (dialogo, menu, sacca, squadra)
-  menus.js          Schermate: titolo, nuova partita, dex, HoF, evoluzione
-  battle.js         Motore di battaglia a turni, AI nemica, animazioni
-  overworld.js      Motore esplorazione: movimento, NPC, warp, incontri selvatici
-  main.js           Boot, stati di gioco, salvataggio/caricamento
-```
+## Comandi
 
-### Game loop
+| | Tastiera e mouse | Telefono |
+|---|---|---|
+| Camminare | WASD o frecce | trascina il dito nella metà sinistra |
+| Correre | Shift (o R per bloccare la corsa) | pulsante Corri, o joystick spinto fino in fondo |
+| Saltare | Spazio | pulsante ⤒ |
+| Ruotare la camera | trascina col mouse, rotella per lo zoom | trascina nella metà destra |
+| Parlare, entrare, confermare | E o Invio | pulsante A |
+| Squadra | P o Tab | ☰ |
+| Mappa | M | 🗺 |
+| Indietro | Esc | ✕ |
 
-Il loop principale (`mainLoop` in `engine.js`) gira a 60 fps via `requestAnimationFrame`. Ogni frame:
+## Come è fatto
 
-1. **Update** — lo stato attivo (`Game.state`) o il top della UI stack chiama `update()`
-2. **Draw** — `cx.setTransform(SCALE,0,0,SCALE,0,0)` scala tutto lo spazio 240×160 alle dimensioni fisiche del canvas; `imageSmoothingEnabled = false` per pixel croccanti
-3. **Fade** — overlay nero con alpha interpolata, usato per transizioni tra stati
-4. **Input** — snapshot di `held` vs `prev` per distinguere pressed vs held
+- [Three.js](https://threejs.org/) + [Vite](https://vitejs.dev/), JavaScript senza framework. Tutta la grafica è
+  generata dal codice: nessun modello o texture esterni.
+- `src/world/`: regioni, generazione del terreno (`heightfield.js`), pezzi di mondo con due livelli di dettaglio
+  (`terrain.js`), alberi ed erba con vento (`vegetation.js`), cielo e giorno/notte (`sky.js`), mare (`water.js`), paesi (`towns.js`).
+- `src/creatures/`: specie, tipi e mosse (`species.js`), modelli 3D dei Velmon (`model.js`), statistiche ed esperienza (`monster.js`).
+- `src/battle/battle.js`: lotte e cattura. `src/ui/hud.js`: interfaccia. `src/player.js`: movimento e camera.
+- Su telefono il gioco usa automaticamente un profilo più leggero (distanza visiva, ombre, densità dell'erba).
 
-### Sistema di rendering della grafica
-
-Tutta la grafica è generata proceduralmente in JavaScript al primo utilizzo e poi cachata in canvas offscreen:
-
-- **Tile 16×16** (`TILE_DRAW` in `sprites.js`): funzioni disegnano l'erba con blade-tip highlights, alberi a 3 layer di fogliame (ombra/medio/highlight), acqua con onde animate, edifici con pattern mattoni e tegole
-- **Sprite personaggi** (`CHAR_GRID`): template 16×16 pixel art con palette sostituibile (cap, hair, skin, shirt, pants, shoes); 6 frame direzionali (down0/1, up0/1, side0/1) con flip orizzontale automatico
-- **MonArt** (`MonArt.gen`): generatore di sprite Velmon 64×64 seed-based, 8 archetipi (blob, beast, bird, serpent, rock, ghost, plant, dragon), palette per tipo
-- **SCALE**: `Math.ceil(devicePixelRatio × displayScale)` da 2 a 8 — i pixel del canvas fisico corrispondono sempre a pixel interi logici, senza blur
-
-### Motore di battaglia
-
-La battaglia usa una **coda di eventi** (`this.q`): ogni azione (mossa, animazione HP, messaggio, faint, cattura) inserisce token nella coda. Il loop consuma un token per frame, aspettando A per avanzare i messaggi. Questo garantisce che effetti visivi e testo siano sempre sincronizzati.
-
-Flusso per il turno:
-```
-doTurn() → calcola ordine (velocità) → buildMoveItems() → insertQ()
-         → checkFaint() → se player faint → afterPlayerFaint()
-         → se party vuoto → finish('lose') → onBattleLost()
-         → altrimenti → forceSwitch (PartyScreen)
+```bash
+npm install
+npm run dev      # sviluppo su http://localhost:5173
+npm run build    # versione finale in dist/
 ```
 
-### Sistema audio
+Ogni push su `master` pubblica il gioco su GitHub Pages (`.github/workflows/deploy.yml`).
 
-`audio.js` usa Web Audio API per generare suoni in tempo reale con oscillatori. La musica è una sequenza di note (array di `[freq, durata]`) suonata in loop. I SFX (conferma, cursore, livello, faint) sono forme d'onda brevi generate on-the-fly.
+## Prossimi passi
 
-### Input
-
-Unificato tra tastiera e touch:
-- **Tastiera**: `ArrowKeys / WASD` per direzioni, `Z/Space` = A, `X` = B, `Enter` = START
-- **Touch**: joystick analogico sinistro (touch drag con zona morta 12 px), pulsanti A/B/START a destra
-
----
-
-## Descrizione funzionale (walkthrough)
-
-### Schermata titolo
-Il gioco si apre con la schermata titolo animata: uno sprite Velmon rotante, il logo e la promessa di un'avventura retrò. Premi **A / Z / Invio** per iniziare.
-
-### Nuova partita
-1. Inserisci il nome del protagonista
-2. Il Professore ti introduce al mondo dei Velmon
-3. Scegli il tuo **Velmon iniziale** tra i tre starter (Fuoco / Acqua / Erba)
-4. Parti dal tuo paese natale (**Borgo**)
-
-### Esplorazione overworld
-- Muoviti con frecce/joystick nelle mappe tile-based
-- **Interagisci** con NPC (tasto A davanti a loro) per dialoghi e sfide
-- **Entra negli edifici** camminando sulle porte
-- Nell'erba alta ci sono **incontri selvatici** casuali
-- Premi **START** per aprire il menu (squadra, sacca, salva, dex)
-
-### Sistema di battaglia
-La battaglia è a turni stile Gen-I:
-- **LOTTA** — scegli una delle 4 mosse; ogni mossa ha PP, tipo e potere
-- **SACCA** — usa pozioni e Valmball per catturare Velmon selvatici
-- **SQUADRA** — cambia il Velmon in campo
-- **FUGA** — solo in battaglie selvatiche
-
-Le statistiche (ATK, DEF, SPD, SPC, HP) scalano col livello; l'efficacia per tipo applica resistenze e debolezze (Fuoco > Erba > Acqua > Fuoco, ecc.).
-
-### Progressione
-- Sconfiggi i **4 Campioni** delle varie zone per ottenere i badge
-- Con i badge aumenta l'obbedienza dei Velmon di alto livello
-- Completa il **Valmordex** catturando le specie selvatiche
-- Batti il **Campione finale** per entrare nella Hall of Fame
-
-### Salvataggio
-Il gioco salva automaticamente su `localStorage` a ogni cambio mappa. Il pulsante START → Salva forza il salvataggio manuale. Al successivo caricamento il titolo propone "Continua".
-
----
-
-## Potenziali miglioramenti (next release)
-
-### Gameplay
-- [ ] **Sistema evolutivo completo** — attualmente le evoluzioni avvengono solo tramite level-up; mancano evoluzioni per scambio o oggetto
-- [ ] **Mosse status più impattanti** — confusione, sonno e paralisi esistono ma non hanno animazioni dedicate
-- [ ] **NPC wandering AI** — gli NPC si muovono casualmente ma non seguono percorsi predefiniti (route patrol)
-- [ ] **Safari Zone / area cattura speciale** — zona con regole diverse (step limit, bait/rock)
-- [ ] **Sistema oggetti espanso** — TM/MV per insegnare mosse extra, pietre evolutive, oggetti equipaggiabili
-- [ ] **Trading tra giocatori** — via WebSocket o URL-share per scambiare Velmon
-
-### Tecnico
-- [ ] **Service Worker / offline PWA** — il gioco funziona già senza backend, ma manca il manifest PWA per installarlo come app su iPhone dalla homescreen
-- [ ] **Salvataggio cloud** — sincronizzazione save tramite localStorage-to-server o GitHub Gist
-- [ ] **Sprite true 32×32 con animazione** — i Velmon attuali sono 64×64 statici; aggiungere 2-frame idle animation
-- [ ] **Mappe più grandi con tilemap editor** — attualmente le mappe sono array hardcoded; un editor visuale JSON semplificherebbe l'espansione
-- [ ] **Localizzazione** — struttura messaggi già centralizzata, pronta per EN/ES/FR
-- [ ] **Leaderboard** — tempo completamento, Velmon catturati, passi, inviati a un backend minimale
-
-### Grafica / UX
-- [ ] **Animazioni battaglia più ricche** — flash di tipo colorato al colpo, shake dello sprite al danno
-- [ ] **Effetti meteo overworld** — pioggia (rafforza Acqua), sole (rafforza Fuoco), nebbia nelle grotte
-- [ ] **Transizione warp animata** — spirale o iris-wipe invece del semplice fade nero
-- [ ] **Ritratti NPC nei dialoghi** — piccola icona viso accanto al testo per i personaggi principali
-- [ ] **Mappa del mondo** — schermata overview con le zone sbloccate evidenziate
-
-### Mobile
-- [ ] **Vibrazione haptica** — `navigator.vibrate()` su colpo critico, cattura, level-up
-- [ ] **Installabile come PWA** — aggiungere `manifest.json` e Service Worker per l'icona sulla homescreen
-- [ ] **Landscape lock** — forzare orientamento orizzontale su iPhone con Screen Orientation API
-
----
-
-## Licenza
-
-Progetto personale / educational. Nessuna affiliazione con Nintendo o Game Freak.
+- Evoluzioni, più specie per regione e Velmon leggendari.
+- Allenatori da sfidare, palestre e la Lega di Valmora a Città Fulgida.
+- Negozi, oggetti, soldi e una storia per ogni regione.
+- Mezzi per attraversare il mondo più in fretta (bici, cavalcature, traghetti).
+- Attività "da grandi" nelle città: missioni losche, contrabbando, inseguimenti.
+- Interni degli edifici, grotte e dungeon.
