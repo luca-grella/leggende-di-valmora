@@ -36,6 +36,12 @@ La vecchia versione 2D (stile GBA) è salvata nel tag [`v1-2d`](../../tree/v1-2d
 - **Bottega** in ogni paese (l'edificio con l'insegna, di fronte al Centro Cura): Sfere, Pozioni, Superpozioni, Ravviva.
   **Zaino** dal menu Squadra o durante le lotte.
 - **Oggetti da prendere e lanciare** (vasi, mele, palle, libri, casse): colpire una guardia la lascia stordita.
+- **Storia**: Capitolo 1 "L'ombra dell'Eclissi" (Campione di Borgo Alba → Prof.ssa Quercia → Dott. Ginepro a Villa
+  Petalo → accampamento dell'Eclissi). **Missioni secondarie**: il Topolux di Nonna Rosa, Pane caldo, Re della strada,
+  Cacciatore di tesori, Collezionista e, se attivate le scene per adulti, "Una sera a Porto Corallo" con Marina.
+  Diario 📜 Missioni nel menu Squadra; l'obiettivo seguito appare in basso e sulla mappa.
+- **Mondo più pieno**: accampamenti con campeggiatori, rovine, 35 forzieri nascosti, cartelli stradali, viaggiatori sulle strade.
+- **Contenuti per adulti** (18+): si sceglie all'avvio e si cambia dal menu Squadra. Niente nudità esplicita.
 - Salvataggio automatico nel browser e pulsante **💾 Salva** nel menu Squadra.
 
 ## Comandi
@@ -60,7 +66,8 @@ La vecchia versione 2D (stile GBA) è salvata nel tag [`v1-2d`](../../tree/v1-2d
 - `src/world/`: regioni, generazione del terreno (`heightfield.js`), pezzi di mondo con due livelli di dettaglio
   (`terrain.js`), alberi ed erba con vento (`vegetation.js`), cielo e giorno/notte (`sky.js`), mare (`water.js`), paesi (`towns.js`),
   allenatori (`trainers.js`), missioni, guardie e ricercato (`crime.js`), scooter (`scooter.js`), segnalini 3D (`markers.js`),
-  interni delle case e Bottega (`interiors.js`), oggetti da lanciare (`grab.js`); oggetti dello zaino in `src/items.js`.
+  interni delle case e Bottega (`interiors.js`), oggetti da lanciare (`grab.js`); oggetti dello zaino in `src/items.js`;
+  accampamenti, rovine, forzieri e viaggiatori (`props.js`); storia, missioni e scene (`src/story/quests.js`).
 - `src/creatures/`: specie, tipi e mosse (`species.js`), modelli 3D dei Velmon (`model.js`), statistiche ed esperienza (`monster.js`).
 - `src/battle/battle.js`: lotte e cattura. `src/ui/hud.js`: interfaccia. `src/player.js`: movimento e camera.
 - Su telefono il gioco usa automaticamente un profilo più leggero (distanza visiva, ombre, densità dell'erba).
@@ -75,7 +82,6 @@ Ogni push su `master` pubblica il gioco su GitHub Pages (`.github/workflows/depl
 
 ## Prossimi passi
 
-- Mondo fuori dai paesi più pieno: persone, oggetti, luoghi da scoprire.
-- Una lunga storia principale e tante missioni secondarie, con relazioni e scene romantiche per adulti (avviso 18+ e interruttore per disattivarle).
+- Capitolo 2 della storia (il covo dell'Eclissi a Città Fulgida) e altri capitoli; altre missioni secondarie e relazioni.
 - Grafica molto più curata (luci, materiali, modelli più dettagliati).
 - Palestre, la Lega di Valmora e Velmon leggendari; traghetti e cavalcature.

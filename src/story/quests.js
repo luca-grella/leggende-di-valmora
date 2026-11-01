@@ -1,0 +1,399 @@
+// The story and the side quests: quest NPCs placed in the world, a journal,
+// the tracked objective on the map and the scripted scenes. Progress lives in
+// state.quests = { questId: stepIndex | 'done' }.
+
+import * as THREE from 'three';
+import { mulberry32 } from '../core/noise.js';
+import { TOWNS, heightAt } from '../world/heightfield.js';
+import { makeCharacter } from '../world/character.js';
+import { findLand } from '../world/props.js';
+import { bubble } from '../world/markers.js';
+import { buildCreature } from '../creatures/model.js';
+import { createMonster } from '../creatures/monster.js';
+import { add as addItem } from '../items.js';
+
+const town = (id) => TOWNS.find((t) => t.region.id === id);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const SKIN = 0xf1c7a3, MARINA = { skin: 0xe0ac69, hair: 0x2b1b10 };
+
+export class Quests {
+  constructor(game) {
+    this.game = game;
+    const rnd = mulberry32(2024);
+    const alba = town('aurora'), petalo = town('fiorita'), muschio = town('giada'), corallo = town('corallo');
+    this.camp = findLand(rnd, petalo.x, petalo.z, 320) || { x: petalo.x + 200, z: petalo.z };
+    this.briciola = findLand(rnd, alba.x, alba.z, 260) || { x: alba.x + 150, z: alba.z + 80 };
+    this.beach = this.findBeach(rnd, corallo) || { x: corallo.x + 120, z: corallo.z + 60 };
+    this.marinaHouse = game.towns.houses.find((h) => h.id === 'corallo-2');
+    this.marinaHouse.reserved = true;
+
+    this.npcs = [];
+    const npc = (id, name, look, x, z) => {
+      const obj = makeCharacter(look);
+      obj.position.set(x, heightAt(x, z), z);
+      const b = bubble('!', '#ffb300', '#3b2a00');
+      b.visible = false;
+      obj.add(b);
+      game.scene.add(obj);
+      const n = { id, name, obj, x, z, mark: b };
+      this.npcs.push(n);
+      return n;
+    };
+    npc('ginepro', 'Dott. Ginepro', { shirt: 0xffffff, pants: 0x3e2723, hat: null, backpack: null, hair: 0x9e9e9e }, petalo.x + 8, petalo.z - 6);
+    npc('rosa', 'Nonna Rosa', { shirt: 0x9c27b0, pants: 0x4a148c, hat: null, backpack: null, hair: 0xe0e0e0, longHair: true }, alba.x - 8, alba.z - 4);
+    npc('fornaio', 'Fornaio Bruno', { shirt: 0xffffff, pants: 0x5d4037, hat: 0xffffff, hatBrim: 0xffffff, backpack: null }, alba.x + 9, alba.z - 5);
+    npc('fornaia', 'Fornaia Ada', { shirt: 0xffffff, pants: 0x795548, hat: 0xffffff, hatBrim: 0xffffff, backpack: null, longHair: true, hair: 0x8d5524 }, muschio.x + 6, muschio.z + 6);
+    npc('marina', 'Marina', { shirt: 0x00acc1, pants: 0xf5f5f5, hat: null, backpack: null, longHair: true, ...MARINA }, corallo.x - 6, corallo.z - 8);
+    const grunt = { shirt: 0x212121, pants: 0x212121, hat: 0x6a1b9a, hatBrim: 0x212121, backpack: null };
+    npc('eclissi1', 'Recluta dell\'Eclissi', grunt, this.camp.x + 2, this.camp.z);
+    npc('eclissi2', 'Recluta dell\'Eclissi', grunt, this.camp.x - 2, this.camp.z + 1.5);
+    // Briciola, the lost Topolux
+    this.pet = buildCreature('topolux');
+    this.pet.position.set(this.briciola.x, heightAt(this.briciola.x, this.briciola.z), this.briciola.z);
+    game.scene.add(this.pet);
+
+    this.Q = {
+      main1: {
+        title: 'Capitolo 1 · L\'ombra dell\'Eclissi', main: true,
+        steps: [
+          { text: 'Sconfiggi il Campione di Borgo Alba (vicino al pozzo)', at: () => ({ x: alba.x - 5, z: alba.z + 11 }), done: (s) => s.beaten['town-aurora'] },
+          { text: 'Parla con la Prof.ssa Quercia', at: () => ({ x: alba.x + 5, z: alba.z + 6 }) },
+          { text: 'Porta la lettera al Dott. Ginepro a Villa Petalo (Costa Fiorita)', at: () => ({ x: petalo.x + 8, z: petalo.z - 6 }) },
+          { text: 'Sconfiggi le reclute dell\'Eclissi all\'accampamento', at: () => this.camp, done: (s) => s.beaten.eclissi1 && s.beaten.eclissi2 },
+          { text: 'Torna dal Dott. Ginepro', at: () => ({ x: petalo.x + 8, z: petalo.z - 6 }) },
+        ],
+        reward: { money: 1500, items: { superpozione: 2 } },
+      },
+      briciola: {
+        title: 'Il Topolux di Nonna Rosa',
+        steps: [
+          { text: 'Trova Briciola, il Topolux di Nonna Rosa, fuori Borgo Alba', at: () => this.briciola },
+          { text: 'Riporta Briciola da Nonna Rosa', at: () => ({ x: alba.x - 8, z: alba.z - 4 }) },
+        ],
+        reward: { money: 400, items: { pozione: 2 } },
+      },
+      pane: {
+        title: 'Pane caldo',
+        steps: [{ text: 'Porta il pane alla Fornaia Ada a Borgo Muschio (Selva di Giada)', at: () => ({ x: muschio.x + 6, z: muschio.z + 6 }) }],
+        reward: { money: 600, items: { pozione: 1 } },
+      },
+      strada: { title: 'Re della strada', steps: [{ text: 'Sconfiggi 6 allenatori lungo le strade', done: (s) => Object.keys(s.beaten).filter((k) => k.startsWith('road-')).length >= 6 }], reward: { money: 1500 } },
+      tesori: { title: 'Cacciatore di tesori', steps: [{ text: 'Apri 5 forzieri nascosti nel mondo', done: (s) => Object.keys(s.chests || {}).length >= 5 }], reward: { items: { ravviva: 2 } } },
+      collezione: { title: 'Collezionista', steps: [{ text: 'Cattura 10 specie diverse di Velmon', done: (s) => Object.keys(s.caught).length >= 10 }], reward: { money: 2000, items: { sfera: 10 } } },
+      marina: {
+        title: '❤️ Una sera a Porto Corallo', adult: true,
+        steps: [
+          { text: 'Porta un vaso di fiori a Marina (ce ne sono nelle piazze)', at: () => ({ x: corallo.x - 6, z: corallo.z - 8 }) },
+          { text: 'Raggiungi Marina in spiaggia, di sera (dopo le 20)', at: () => this.beach },
+          { text: 'Vai a casa di Marina', at: () => this.marinaHouse.door },
+        ],
+        reward: {},
+      },
+    };
+    this.t = 0;
+  }
+
+  findBeach(rnd, t) {
+    for (let i = 0; i < 200; i++) {
+      const a = rnd() * Math.PI * 2, r = 130 + rnd() * 250;
+      const x = t.x + Math.cos(a) * r, z = t.z + Math.sin(a) * r;
+      const h = heightAt(x, z);
+      if (h > 0.6 && h < 2.2) return { x, z };
+    }
+    return null;
+  }
+
+  get st() { return this.game.state; }
+
+  // quests that start on their own (from a new game, or an old save)
+  init() {
+    const st = this.st;
+    st.quests ??= {};
+    for (const id of ['strada', 'tesori', 'collezione']) st.quests[id] ??= 0;
+    if (st.started) st.quests.main1 ??= 0;
+    if (st.quests.briciola === 'done') this.pet.visible = false;
+    this.check(true);
+  }
+
+  active() {
+    return Object.entries(this.st.quests || {}).filter(([id, s]) => s !== 'done' && this.Q[id] && (!this.Q[id].adult || this.st.adult));
+  }
+
+  start(id) {
+    if (this.st.quests[id] != null) return;
+    this.st.quests[id] = 0;
+    this.st.track = id;
+    this.game.hud.toast(`Nuova missione: ${this.Q[id].title}`, 2600);
+    this.game.save();
+  }
+
+  advance(id) {
+    const q = this.Q[id], st = this.st;
+    st.quests[id] += 1;
+    if (st.quests[id] >= q.steps.length) {
+      st.quests[id] = 'done';
+      const r = q.reward || {};
+      if (r.money) { st.money += r.money; this.game.hud.setMoney(st.money); }
+      for (const [it, n] of Object.entries(r.items || {})) addItem(st, it, n);
+      const parts = [r.money ? `💰 ${r.money}` : '', ...Object.entries(r.items || {}).map(([it, n]) => `${n}× ${it}`)].filter(Boolean);
+      this.game.hud.banner(parts.length ? `Ricompensa: ${parts.join(', ')}` : 'Completata', q.title);
+      if (st.track === id) st.track = null;
+    } else this.game.hud.toast(`${q.title}: ${q.steps[st.quests[id]].text}`, 3000);
+    this.game.save();
+  }
+
+  // automatic objectives (beaten trainers, chests, catches)
+  check(silent = false) {
+    for (const [id, s] of this.active()) {
+      const step = this.Q[id].steps[s];
+      if (step?.done?.(this.st)) { if (!silent || true) this.advance(id); }
+    }
+  }
+
+  tracked() {
+    const act = this.active();
+    const id = act.find(([i]) => i === this.st.track)?.[0] || act.find(([i]) => this.Q[i].main)?.[0] || act.find(([i]) => this.Q[i].steps[this.st.quests[i]].at)?.[0];
+    return id ? { id, q: this.Q[id], step: this.Q[id].steps[this.st.quests[id]] } : null;
+  }
+
+  mapMarks() {
+    const tr = this.tracked();
+    const p = tr?.step.at?.();
+    return p ? [{ x: p.x, z: p.z, color: '#ffb300', edge: true }] : [];
+  }
+
+  async journal() {
+    const act = this.active();
+    if (!act.length) { this.game.hud.toast('Nessuna missione attiva.', 1600); return; }
+    const i = await this.game.hud.choose('📜 Missioni (tocca per seguirla sulla mappa)', [...act.map(([id, s]) => ({ icon: this.Q[id].main ? '⭐' : this.st.track === id ? '📍' : '📜', label: this.Q[id].title, sub: this.Q[id].steps[s].text })), { icon: '↩︎', label: 'Chiudi' }]);
+    if (i >= 0 && i < act.length) { this.st.track = act[i][0]; this.game.save(); }
+  }
+
+  // ---------- talking ----------
+  nearest(pos) {
+    if (this.game.player.indoor) return null;
+    let best = null;
+    for (const n of this.npcs) {
+      if (!n.obj.visible) continue;
+      const d = Math.hypot(pos.x - n.obj.position.x, pos.z - n.obj.position.z);
+      if (d < 2.3 && (!best || d < best.d)) best = { kind: 'quest', n, d, hint: `A · Parla con ${n.name}` };
+    }
+    const dp = Math.hypot(pos.x - this.pet.position.x, pos.z - this.pet.position.z);
+    if (this.pet.visible && dp < 2 && this.st.quests.briciola === 0) best = { kind: 'pet', d: dp, hint: 'A · Prendi Briciola' };
+    return best;
+  }
+
+  // the Professoressa's lines when the story needs her; true if handled
+  async onProf() {
+    const st = this.st, hud = this.game.hud;
+    if (st.quests.main1 === 0) { await hud.say('Prof.ssa Quercia', ['Il Campione di Borgo Alba è lì vicino al pozzo. Battilo e torna da me: ho un incarico importante per te.']); return true; }
+    if (st.quests.main1 === 1) {
+      await hud.say('Prof.ssa Quercia', ['Hai battuto il Campione! Allora sei pronto.', 'Negli ultimi giorni molti Velmon sono spariti. Si parla di un gruppo vestito di nero: l\'Eclissi.', 'Porta questa lettera al mio collega, il Dott. Ginepro, a Villa Petalo, a ovest sulla costa. Lui sa di più.']);
+      this.advance('main1');
+      return true;
+    }
+    return false;
+  }
+
+  async talk(n) {
+    const game = this.game, st = this.st, hud = game.hud;
+    game.busy = true;
+    n.obj.lookAt(game.player.pos.x, n.obj.position.y, game.player.pos.z);
+    const q = st.quests;
+    switch (n.id) {
+      case 'ginepro':
+        if (q.main1 === 2) {
+          await hud.say(n.name, ['Una lettera di Quercia? Vediamo...', 'Proprio come temevo. L\'Eclissi ha piantato un accampamento qui vicino: rubano Velmon dalle fattorie.', 'Io sono troppo vecchio per le lotte. Vai tu e cacciali via! L\'accampamento è segnato sulla tua mappa.']);
+          this.advance('main1');
+        } else if (q.main1 === 4) {
+          await hud.say(n.name, ['Li hai messi in fuga! I Velmon delle fattorie sono liberi.', 'Ma questo era solo un avamposto. Dalle loro carte, il covo dell\'Eclissi è a Città Fulgida, sotto il naso di tutti...', 'Prendi questo per il disturbo. Il viaggio vero comincia adesso.']);
+          this.advance('main1');
+          hud.banner('Continua nel Capitolo 2…', 'Capitolo 1 completato');
+        } else await hud.say(n.name, ['La Costa Fiorita è bellissima in primavera. Peccato per tutti questi furti...']);
+        break;
+      case 'eclissi1': case 'eclissi2': {
+        if (q.main1 !== 3 || st.beaten[n.id]) { await hud.say(n.name, [st.beaten[n.id] ? 'Ahia... il capo non sarà contento.' : 'Circolare, non c\'è niente da vedere qui.']); break; }
+        await hud.say(n.name, ['Un ficcanaso! L\'Eclissi non perdona chi mette il becco nei suoi affari!']);
+        const top = Math.max(...st.party.map((m) => m.level));
+        const team = (n.id === 'eclissi1' ? ['pipistro', 'topolux'] : ['ombrale', 'sabbiolo', 'voltino']).map((id) => createMonster(id, Math.max(8, Math.min(top, 18))));
+        const out = await game.battle.start(null, { trainer: { name: n.name, team, reward: 500, fine: 200, obj: n.obj } });
+        n.obj.position.set(n.x, heightAt(n.x, n.z), n.z);
+        if (out === 'win') { st.beaten[n.id] = true; game.busy = true; await hud.say(n.name, ['Non finisce qui! Il capo ve la farà pagare!']); this.check(); }
+        break;
+      }
+      case 'rosa':
+        if (q.briciola == null) {
+          await hud.say(n.name, ['Oh, caro... il mio Topolux, Briciola, è scappato di nuovo!', 'L\'ho visto correre fuori dal paese. Me lo riporteresti? Ti preparo una torta... e qualche moneta.']);
+          this.start('briciola');
+        } else if (q.briciola === 1) {
+          await hud.say(n.name, ['Briciola! Eccoti, birbante!', 'Grazie, tesoro. Tieni, te lo sei meritato.']);
+          this.pet.visible = false;
+          this.advance('briciola');
+        } else await hud.say(n.name, [q.briciola === 'done' ? 'Briciola non è più scappato, grazie a te.' : 'Hai trovato Briciola? È là fuori da qualche parte...']);
+        break;
+      case 'fornaio':
+        if (q.pane == null) { await hud.say(n.name, ['Ehi, giovane! Mi porti questa pagnotta a mia sorella Ada, a Borgo Muschio? Lei ti pagherà bene.']); this.start('pane'); }
+        else await hud.say(n.name, [q.pane === 'done' ? 'Ada mi ha scritto: il pane è arrivato ancora caldo!' : 'Borgo Muschio è a nord-est, nella Selva di Giada.']);
+        break;
+      case 'fornaia':
+        if (q.pane === 0) { await hud.say(n.name, ['Il pane di mio fratello! Ha ancora quel profumo...', 'Ecco a te, e grazie mille!']); this.advance('pane'); }
+        else await hud.say(n.name, ['Benvenuto a Borgo Muschio! Il pane migliore della selva è qui.']);
+        break;
+      case 'marina': await this.marinaTalk(n); break;
+      default:
+    }
+    game.busy = false;
+  }
+
+  async petFound() {
+    const game = this.game;
+    game.busy = true;
+    await game.hud.say('', ['Briciola squittisce felice e ti salta in braccio!']);
+    this.pet.visible = false;
+    this.advance('briciola');
+    game.busy = false;
+  }
+
+  // ---------- Marina (18+) ----------
+  async marinaTalk(n) {
+    const st = this.st, hud = this.game.hud, q = st.quests;
+    if (!st.adult) { await hud.say(n.name, ['Ciao! Il porto è bellissimo al tramonto, sai?']); return; }
+    if (q.marina == null) {
+      await hud.say(n.name, ['Ehi, straniero. Non ti ho mai visto al porto.', 'Lavoro qui da dieci anni e conosco tutti... ma tu no. Interessante.', 'Facciamo così: portami un bel vaso di fiori e forse ti concedo una serata. Non sono una che si accontenta, eh.']);
+      this.start('marina');
+    } else if (q.marina === 0) {
+      const g = this.game.grab;
+      if (g.held?.kind === 'vasofiori') {
+        const it = g.held;
+        g.drop();
+        this.game.scene.remove(it.obj);
+        g.items.splice(g.items.indexOf(it), 1);
+        await hud.say(n.name, ['Per me? Ma guarda che galantuomo...', 'Va bene, hai vinto. Stasera, dopo le otto, in spiaggia. Non farmi aspettare.', 'E mettiti qualcosa di carino.']);
+        this.advance('marina');
+      } else await hud.say(n.name, ['Allora, questi fiori? Una ragazza non aspetta per sempre.']);
+    } else if (q.marina === 'done') await hud.say(n.name, ['Ciao, tu... 😏 Ripensavo a quella sera.', 'Passa da casa mia quando vuoi.']);
+    else await hud.say(n.name, [q.marina === 1 ? 'Stasera in spiaggia, ricordi? Dopo le otto.' : 'Che fai ancora qui? Ti aspetto a casa mia.']);
+  }
+
+  // two people facing each other, slowly closer: the kiss
+  async kiss(a, b) {
+    const pa = a.position.clone(), pb = b.position.clone();
+    const mid = pa.clone().lerp(pb, 0.5);
+    const dir = pb.clone().sub(pa).setY(0).normalize();
+    a.lookAt(pb.x, pa.y, pb.z); b.lookAt(pa.x, pb.y, pa.z);
+    for (let i = 0; i <= 30; i++) {
+      const k = i / 30;
+      a.position.copy(mid).addScaledVector(dir, -0.75 + k * 0.48); a.position.y = pa.y;
+      b.position.copy(mid).addScaledVector(dir, 0.75 - k * 0.48); b.position.y = pb.y;
+      a.userData.body.rotation.x = b.userData.body.rotation.x = k * 0.14;
+      await sleep(30);
+    }
+    const heart = bubble('❤', '#ff3d68');
+    heart.position.copy(mid).y += 2.3;
+    this.game.scene.add(heart);
+    await sleep(900);
+    return heart;
+  }
+
+  async beachScene() {
+    const game = this.game, hud = game.hud, P = game.player;
+    game.busy = true;
+    const m = this.npcs.find((x) => x.id === 'marina');
+    const b = this.beach;
+    m.obj.position.set(b.x + 1.5, heightAt(b.x + 1.5, b.z), b.z);
+    P.place(b.x - 0.5, b.z, Math.PI / 2);
+    const look = new THREE.Vector3(b.x + 0.5, heightAt(b.x, b.z) + 1.5, b.z);
+    game.cine = { pos: new THREE.Vector3(b.x + 0.5, look.y + 0.4, b.z + 4), look };
+    await hud.say('Marina', ['Sei venuto davvero. E pure puntuale.', 'Guarda il mare... di notte sembra fatto d\'argento.', 'Lo sai che hai degli occhi pericolosi? Vieni più vicino.']);
+    const heart = await this.kiss(P.model, m.obj);
+    await hud.say('Marina', ['Mmh... baci bene, straniero.', 'Casa mia è qui vicino. Non mi va che questa serata finisca in spiaggia.']);
+    game.scene.remove(heart);
+    P.model.userData.body.rotation.x = m.obj.userData.body.rotation.x = 0;
+    m.obj.position.set(m.x, heightAt(m.x, m.z), m.z);
+    game.cine = null;
+    this.advance('marina');
+    game.busy = false;
+  }
+
+  // inside Marina's house: kisses, clothes off (no anatomy is ever modelled),
+  // then the two of them in bed under the blanket. No fade to black.
+  async bedroomScene(room) {
+    const game = this.game, hud = game.hud, P = game.player;
+    game.busy = true;
+    const o = room.origin, y = room.bounds.y;
+    const her = makeCharacter({ shirt: 0x00acc1, pants: 0xf5f5f5, hat: null, backpack: null, longHair: true, ...MARINA });
+    her.position.set(o.x + 0.8, y, o.z + 0.4);
+    game.scene.add(her);
+    P.place(o.x - 0.6, o.z + 0.4, Math.PI / 2);
+    const look = new THREE.Vector3(o.x + 0.1, y + 1.55, o.z + 0.4);
+    game.cine = { pos: new THREE.Vector3(o.x + 0.1, y + 1.9, o.z + 3.2), look };
+    await hud.say('Marina', ['Benvenuto nel mio piccolo regno.', 'Chiudi la porta... e smettila di guardarti intorno. Guarda me.']);
+    const heart = await this.kiss(P.model, her);
+    await hud.say('Marina', ['Fa caldo qui dentro, non trovi?', 'Lascia che ti aiuti con quella maglietta...']);
+    // swap both to their underwear
+    const meU = makeCharacter({ shirt: SKIN, pants: 0x1d3557, hat: null, backpack: null });
+    const herU = makeCharacter({ shirt: MARINA.skin, pants: 0xb0003a, top: 0xb0003a, hat: null, backpack: null, longHair: true, ...MARINA });
+    for (const [from, to] of [[P.model, meU], [her, herU]]) { to.position.copy(from.position); to.rotation.copy(from.rotation); to.userData.body.rotation.x = 0.14; game.scene.add(to); from.visible = false; }
+    await hud.say('Marina', ['Molto meglio così.', 'Allora, straniero... il letto è da quella parte. Mi ci porti tu?']);
+    // into bed, under the blanket
+    const bed = { x: o.x - 3.9, z: o.z - 2.7 };
+    // the blanket covers them from the chest down
+    const LIE = -Math.PI / 2 + 0.35; // lying back, propped up on the pillows
+    const blanket = new THREE.Group();
+    blanket.position.set(bed.x, y + 0.8, bed.z + 1.0);
+    blanket.rotation.x = LIE;
+    const sheet = new THREE.Mesh(new THREE.BoxGeometry(1.62, 1.4, 0.44), new THREE.MeshStandardMaterial({ color: 0xb0003a, roughness: 1 }));
+    sheet.position.y = 0.66;
+    sheet.castShadow = true;
+    blanket.add(sheet);
+    game.scene.add(blanket);
+    for (const [c, dx] of [[meU, -0.33], [herU, 0.33]]) {
+      c.userData.body.rotation.x = 0;
+      c.rotation.set(LIE, 0, 0);
+      c.position.set(bed.x + dx, y + 0.8, bed.z + 1.0);
+    }
+    heart.position.set(bed.x, y + 2.0, bed.z - 0.6);
+    heart.scale.setScalar(0.4);
+    // from the foot of the bed: two heads on the pillows, the rest under the blanket
+    game.cine = { pos: new THREE.Vector3(bed.x + 1.9, y + 2.5, bed.z + 1.2), look: new THREE.Vector3(bed.x, y + 1.15, bed.z - 0.45) };
+    await hud.say('Marina', ['Mmh... finalmente.', 'Shh. Niente parole, adesso.', '...', 'Wow. Non male, per uno che viene da Borgo Alba.', 'Resta stanotte. Domattina ti preparo il caffè... se mi lasci alzare.']);
+    hud.toast('❤️ Tu e Marina siete una coppia', 2600);
+    // back on your feet
+    for (const o2 of [meU, herU, blanket, heart]) game.scene.remove(o2);
+    game.scene.remove(her);
+    P.model.visible = true;
+    P.place(o.x - 2, o.z, 0);
+    game.cine = null;
+    this.advance('marina');
+    game.busy = false;
+  }
+
+  onEnterHouse(house, room) {
+    if (house === this.marinaHouse && this.st.quests.marina === 2 && this.st.adult) this.bedroomScene(room);
+  }
+
+  update(dt) {
+    this.t += dt;
+    const game = this.game, P = game.player.pos, st = this.st;
+    for (const n of this.npcs) {
+      n.obj.visible = !game.player.indoor && Math.abs(P.x - n.obj.position.x) < 260 && Math.abs(P.z - n.obj.position.z) < 260;
+      if (!n.obj.visible) continue;
+      n.obj.userData.animate(dt, 0);
+      // a golden "!" over whoever has something for you
+      const q = st.quests || {};
+      n.mark.visible = (n.id === 'rosa' && (q.briciola == null || q.briciola === 1)) || (n.id === 'fornaio' && q.pane == null) || (n.id === 'fornaia' && q.pane === 0)
+        || (n.id === 'ginepro' && (q.main1 === 2 || q.main1 === 4)) || (n.id.startsWith('eclissi') && q.main1 === 3 && !st.beaten[n.id])
+        || (n.id === 'marina' && st.adult && (q.marina == null || q.marina === 0));
+    }
+    if (this.pet.visible) this.pet.userData.animate(dt);
+    if (this.t > 0.5) {
+      this.t = 0;
+      this.check();
+      // the beach date only happens at night
+      if (st.quests?.marina === 1 && st.adult && !game.busy && !game.battle.active) {
+        const h = game.sky.time;
+        if ((h >= 20 || h < 5) && Math.hypot(P.x - this.beach.x, P.z - this.beach.z) < 6) this.beachScene();
+      }
+    }
+  }
+}

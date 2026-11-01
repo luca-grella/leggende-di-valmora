@@ -119,7 +119,7 @@ export class Interiors {
       leaves.position.set(W / 2 - 0.5, 0.75, D / 2 - 0.6); leaves.castShadow = true; g.add(leaves);
       solid(0.5, 0.5, W / 2 - 0.5, D / 2 - 0.6);
       // somebody at home, sometimes
-      if (rnd() < 0.7) {
+      if (!house.reserved && rnd() < 0.7) {
         const npc = makeCharacter({ shirt: pick([0x3d7dd9, 0x4caf50, 0x9c27b0, 0xff9800, 0x795548]), pants: 0x37474f, hat: null, backpack: null, hair: pick([0x2b1b10, 0x8d5524, 0xe0c07a, 0xbdbdbd]), skin: pick([0xf1c7a3, 0xc68642, 0xe0ac69]) });
         npc.position.set(o.x - 1.5, INDOOR_Y, o.z + 0.2);
         things.push({ kind: 'resident', obj: npc, x: o.x - 1.5, z: o.z + 0.2, lines: pick(LINES), name: pick(['Abitante', 'Padrona di casa', 'Nonno', 'Ragazzo']) });
@@ -150,8 +150,8 @@ export class Interiors {
       if (r() < 0.6) game.grab.spawn('libro', room.origin.x - 4.4, INDOOR_Y + 0.95, room.origin.z + 1.4, true);
     }
     await this.fade(false);
-    game.hud.setPlace(house.shop ? `Bottega · ${house.town.region.town.name}` : house.town.region.town.name, game.sky.clockText);
     game.busy = false;
+    game.quests?.onEnterHouse(house, room);
   }
 
   async exit() {

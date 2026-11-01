@@ -12,6 +12,8 @@ import { Trainers } from './world/trainers.js';
 import { Crime } from './world/crime.js';
 import { Interiors } from './world/interiors.js';
 import { Grab } from './world/grab.js';
+import { Props } from './world/props.js';
+import { Quests } from './story/quests.js';
 import { TOWNS } from './world/heightfield.js';
 import { regionAt } from './world/regions.js';
 import { windUniforms } from './world/vegetation.js';
@@ -52,6 +54,8 @@ class Game {
     this.crime = new Crime(this);
     this.interiors = new Interiors(this);
     this.grab = new Grab(this);
+    this.props = new Props(this);
+    this.quests = new Quests(this);
     this.input = new Input(canvas, {
       joyBase: $('joy-base'), joyKnob: $('joy-knob'), btnA: $('btn-a'), btnMenu: $('btn-menu'),
       btnMap: $('btn-map'), btnJump: $('btn-jump'), btnRun: $('btn-run'), btnFire: $('btn-fire'),
@@ -72,14 +76,14 @@ class Game {
 
   newState() {
     const start = TOWNS.find((t) => t.region.start);
-    return { v: 1, pos: { x: start.x + 2, z: start.z + 14, facing: Math.PI }, time: 9.5, party: [], box: [], balls: 0, seen: {}, caught: {}, cura: start.region.id, started: false, money: 300, beaten: {}, blaster: false, crimes: 0, bag: { pozione: 2 }, looted: {} };
+    return { v: 1, pos: { x: start.x + 2, z: start.z + 14, facing: Math.PI }, time: 9.5, party: [], box: [], balls: 0, seen: {}, caught: {}, cura: start.region.id, started: false, money: 300, beaten: {}, blaster: false, crimes: 0, bag: { pozione: 2 }, looted: {}, quests: {}, chests: {} };
   }
 
   load() {
     try {
       const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
       // saves from before money and trainers get the new fields
-      if (s && s.v === 1) return { money: 300, beaten: {}, blaster: false, crimes: 0, bag: { pozione: 2 }, looted: {}, ...s };
+      if (s && s.v === 1) return { money: 300, beaten: {}, blaster: false, crimes: 0, bag: { pozione: 2 }, looted: {}, quests: {}, chests: {}, ...s };
     } catch { /* private mode or corrupted save: start fresh */ }
     return this.newState();
   }
@@ -123,7 +127,10 @@ class Game {
     this.hud.teamStrip(this.state.party);
     this.hud.setMoney(this.state.money);
     this.hud.showFire(this.state.blaster);
+    this.props.syncChests();
+    this.quests.init();
     this.renderer.setAnimationLoop((ts) => this.frame(ts));
+    if (this.state.adult === undefined) await this.askAdult();
     if (!this.state.started) this.intro();
     else this.hud.toast('Bentornato a Valmora!');
   }
@@ -131,6 +138,17 @@ class Game {
   hudVisible(v) {
     $('hud').hidden = !v;
     if (matchMedia('(pointer: coarse)').matches) $('touch').hidden = !v;
+  }
+
+  async askAdult() {
+    this.busy = true;
+    const i = await this.hud.choose('🔞 Contenuti per adulti', [
+      { icon: '🔞', label: 'Ho almeno 18 anni', sub: 'Attiva missioni romantiche e scene piccanti (non esplicite).' },
+      { icon: '🙈', label: 'Disattiva le scene per adulti', sub: 'Puoi cambiare idea dal menu Squadra.' },
+    ]);
+    this.state.adult = i === 0;
+    this.save();
+    this.busy = false;
   }
 
   // ---------- story beats ----------
@@ -169,6 +187,8 @@ class Game {
       'Ah, e occhio al buio: di notte escono Velmon che di giorno non vedrai mai. Buon viaggio!',
     ]);
     this.hud.banner('Inizia l\'avventura', 'Valle Aurora');
+    this.quests.start('main1');
+    await this.hud.say('Prof.ssa Quercia', ['Un\'ultima cosa: il Campione di Borgo Alba è qui vicino al pozzo. Quando ti senti pronto, sfidalo e poi torna da me.']);
   }
 
   addCaught(mon) {
@@ -213,6 +233,10 @@ class Game {
     if (it.kind === 'trainer') return this.trainers.talk(it.tr, this);
     if (['fixer', 'scooter', 'stall'].includes(it.kind)) return this.crime.interact(it);
     if (['door', 'exit', 'rummage', 'shop', 'resident'].includes(it.kind)) return this.interiors.interact(it);
+    if (it.kind === 'quest') return this.quests.talk(it.n);
+    if (it.kind === 'pet') return this.quests.petFound();
+    if (it.kind === 'chest') return this.props.open(it.c);
+    if (it.kind === 'propnpc') return this.props.talk(it.n);
     if (it.kind === 'grab') { this.grab.pick(it.it); return; }
     if (it.kind === 'throw') { this.grab.throw(); return; }
     if (it.kind === 'dismount') { this.player.dismount(); return; }
@@ -233,6 +257,7 @@ class Game {
       it.npc.talking = false;
     } else if (it.kind === 'prof') {
       if (!this.state.started) await this.pickStarter();
+      else if (await this.quests.onProf()) { /* the story took over */ }
       else {
         const seen = Object.keys(this.state.seen).length, caught = Object.keys(this.state.caught).length;
         await this.hud.say('Prof.ssa Quercia', [`Hai visto ${seen} specie e ne hai catturate ${caught} su ${Object.keys(SPECIES).length}.`, caught < 6 ? 'Esplora le altre regioni: ogni zona ha Velmon diversi!' : 'Impressionante! Stai diventando un vero esperto.']);
@@ -255,16 +280,20 @@ class Game {
     this.crime.update(dt);
     this.interiors.update(dt);
     this.grab.update(dt);
+    this.props.update(dt, t);
+    this.quests.update(dt);
 
     const frozen = this.busy || this.hud.modal || this.battle.active;
     if (!this.battle.active) {
       this.player.update(dt, input, this, frozen);
-      this.player.updateCamera(dt);
+      // story scenes take over the camera: this.cine = { pos, look }
+      if (this.cine) { this.camera.position.lerp(this.cine.pos, Math.min(dt * 3, 1)); this.camera.lookAt(this.cine.look); }
+      else this.player.updateCamera(dt);
     } else this.battle.updateCamera(this.camera, t);
 
     if (!frozen) {
       if (input.pressed('menu')) this.hud.showMenu(this);
-      else if (input.pressed('map')) this.hud.showBigMap(this.player.pos.x, this.player.pos.z, this.crime.mapMarks());
+      else if (input.pressed('map')) this.hud.showBigMap(this.player.pos.x, this.player.pos.z, this.crime.mapMarks().concat(this.quests.mapMarks()));
       else if (input.pressed('run')) input.runToggle = !input.runToggle;
       if (input.pressed('fire')) this.crime.fire();
       const it = this.nearestInteraction();
@@ -289,7 +318,12 @@ class Game {
       this.mapT = 0.12;
       const room = this.interiors.room?.house;
       this.hud.setPlace(room ? (room.shop ? `Bottega · ${room.town.region.town.name}` : `Casa a ${room.town.region.town.name}`) : r.name, this.sky.clockText);
-      this.hud.drawMinimap(center.x, center.z, this.player.facing, this.crime.mapMarks());
+      this.hud.drawMinimap(center.x, center.z, this.player.facing, this.crime.mapMarks().concat(this.quests.mapMarks()));
+      // with no job running, the bottom panel shows the tracked quest
+      if (!this.crime.mission) {
+        const tq = this.quests.tracked(), at = tq?.step.at?.();
+        this.hud.mission(tq && !this.interiors.inside ? { title: tq.q.title, goal: tq.step.text, timer: '', dist: at ? Math.round(Math.hypot(at.x - center.x, at.z - center.z)) : null } : null);
+      }
     }
     this.saveT += dt;
     if (this.saveT > 5 && !this.battle.active) { this.saveT = 0; this.save(); }
@@ -305,7 +339,7 @@ class Game {
     if (this.grab.held) return this.grab.nearest(P);
     const all = this.interiors.inside
       ? [this.interiors.nearest(P), this.grab.nearest(P)].filter(Boolean)
-      : [this.towns.nearestInteraction(P), this.trainers.nearest(P), this.crime.nearest(P), this.interiors.nearest(P), this.grab.nearest(P)].filter(Boolean);
+      : [this.towns.nearestInteraction(P), this.trainers.nearest(P), this.crime.nearest(P), this.interiors.nearest(P), this.grab.nearest(P), this.quests.nearest(P), this.props.nearest(P)].filter(Boolean);
     all.sort((a, b) => a.d - b.d);
     const it = all[0];
     if (it?.kind === 'trainer') it.hint = `A · Parla con ${it.tr.name}`;

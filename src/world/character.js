@@ -16,7 +16,7 @@ function part(geo, hex, x, y, z) {
   return m;
 }
 
-export function makeCharacter({ skin = 0xf1c7a3, shirt = 0xd94a3d, pants = 0x2e3f63, shoes = 0x2a2a2a, hair = 0x3b2a1e, hat = 0xd94a3d, hatBrim = 0xffffff, backpack = 0xf2c14e, scale = 1 } = {}) {
+export function makeCharacter({ skin = 0xf1c7a3, shirt = 0xd94a3d, pants = 0x2e3f63, shoes = 0x2a2a2a, hair = 0x3b2a1e, hat = 0xd94a3d, hatBrim = 0xffffff, backpack = 0xf2c14e, scale = 1, longHair = false, top = null } = {}) {
   const root = new THREE.Group();
   const body = new THREE.Group();
   root.add(body);
@@ -28,6 +28,8 @@ export function makeCharacter({ skin = 0xf1c7a3, shirt = 0xd94a3d, pants = 0x2e3
   // hair and cap
   const hairM = part(new THREE.SphereGeometry(0.265, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), hair, 0, 1.7, -0.02);
   body.add(hairM);
+  if (longHair) { const lh = part(new THREE.SphereGeometry(0.2, 10, 8), hair, 0, 1.5, -0.16); lh.scale.set(1.25, 1.7, 0.7); body.add(lh); }
+  if (top !== null) { const tp = part(new THREE.BoxGeometry(0.5, 0.16, 0.36), top, 0, 1.3, 0.02); body.add(tp); } // underwear top
   if (hat !== null) {
     body.add(part(new THREE.SphereGeometry(0.275, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.42), hat, 0, 1.73, 0));
     const brim = part(new THREE.CylinderGeometry(0.2, 0.2, 0.03, 12, 1, false, -Math.PI / 2, Math.PI), hatBrim, 0, 1.79, 0.17);

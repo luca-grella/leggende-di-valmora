@@ -264,7 +264,10 @@ export class Hud {
     $('menu-foot').innerHTML = `💰 Monete: <b>${st.money.toLocaleString('it-IT')}</b> · Sfere: <b>${st.balls}</b> · Box: <b>${st.box.length}</b>${bag ? ` · Zaino: ${bag}` : ''}<br>`
       + `Diario: <b>${Object.keys(st.seen).length}</b> visti, <b>${Object.keys(st.caught).length}</b> catturati su <b>${total}</b><br>`
       + `Allenatori battuti: <b>${Object.keys(st.beaten).length}</b> (campioni <b>${champs}</b>/9) · Lavoretti loschi: <b>${st.crimes || 0}</b>${st.blaster ? ' · 🎯 Spara-vernice' : ''}<br>`
-      + 'Tocca un Velmon per metterlo in testa alla squadra. <button id="menu-bag">🎒 Zaino</button>';
+      + 'Tocca un Velmon per metterlo in testa alla squadra.<br><button id="menu-bag">🎒 Zaino</button><button id="menu-quests">📜 Missioni</button>'
+      + `<button id="menu-adult">🔞 Scene per adulti: ${st.adult ? 'sì' : 'no'}</button>`;
+    $('menu-quests').onpointerdown = async (e) => { e.stopPropagation(); this.closePanels(); await game.quests.journal(); };
+    $('menu-adult').onpointerdown = (e) => { e.stopPropagation(); st.adult = !st.adult; game.save(); this.showMenu(game); };
     $('menu-bag').onpointerdown = async (e) => {
       e.stopPropagation();
       this.closePanels();
