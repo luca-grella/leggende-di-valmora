@@ -2,7 +2,8 @@
 // collisions with trees, rocks and buildings, and the orbit camera.
 
 import * as THREE from 'three';
-import { heightAt } from './world/heightfield.js';
+import { heightAt as terrainHeight } from './world/heightfield.js';
+import { collideBoxes } from './world/towns.js';
 import { WORLD_HALF } from './world/regions.js';
 import { makeCharacter } from './world/character.js';
 import { clamp } from './core/noise.js';
@@ -29,6 +30,11 @@ export class Player {
     this.moved = 0;
     this.camPos = new THREE.Vector3();
     this.vehicle = null; // the scooter being ridden: { model, ... }
+    this.indoor = null; // inside a house: { y, ceil, x0, x1, z0, z1, boxes }
+  }
+
+  ground(x, z) {
+    return this.indoor ? this.indoor.y : terrainHeight(x, z);
   }
 
   faceTo(x, z) {
@@ -55,7 +61,7 @@ export class Player {
     v.model.rotation.z = 0;
     const sx = Math.cos(this.facing), sz = -Math.sin(this.facing);
     const x = this.pos.x + sx * 1.1, z = this.pos.z + sz * 1.1;
-    if (heightAt(x, z) > SWIM_DEPTH) { this.pos.x = x; this.pos.z = z; }
+    if (this.ground(x, z) > SWIM_DEPTH) { this.pos.x = x; this.pos.z = z; }
     this.vel.set(0, 0, 0);
     this.sync();
     return v;
@@ -66,7 +72,7 @@ export class Player {
   }
 
   place(x, z, facing = 0) {
-    this.pos.set(x, Math.max(heightAt(x, z), SWIM_DEPTH + 0.05), z);
+    this.pos.set(x, this.indoor ? this.indoor.y : Math.max(this.ground(x, z), SWIM_DEPTH + 0.05), z);
     this.facing = facing;
     this.camYaw = facing + Math.PI;
     this.vel.set(0, 0, 0);
@@ -102,21 +108,28 @@ export class Player {
     const old = this.pos.clone();
     this.pos.x += this.vel.x * dt;
     this.pos.z += this.vel.z * dt;
-    world.chunks.collide(this.pos, RADIUS);
-    world.towns.collide(this.pos, RADIUS);
+    if (this.indoor) {
+      const b = this.indoor;
+      collideBoxes(b.boxes, this.pos, RADIUS);
+      this.pos.x = clamp(this.pos.x, b.x0, b.x1);
+      this.pos.z = clamp(this.pos.z, b.z0, b.z1);
+    } else {
+      world.chunks.collide(this.pos, RADIUS);
+      world.towns.collide(this.pos, RADIUS);
+    }
     // stay inside the world and off cliffs that are too steep
     this.pos.x = clamp(this.pos.x, -WORLD_HALF + 120, WORLD_HALF - 120);
     this.pos.z = clamp(this.pos.z, -WORLD_HALF + 120, WORLD_HALF - 120);
-    const h = heightAt(this.pos.x, this.pos.z);
+    const h = this.ground(this.pos.x, this.pos.z);
     const step = Math.hypot(this.pos.x - old.x, this.pos.z - old.z);
-    const rise = h - heightAt(old.x, old.z);
+    const rise = h - this.ground(old.x, old.z);
     if (this.grounded && !this.swimming && step > 0.001 && rise / step > 1.6) {
       this.pos.x = old.x; this.pos.z = old.z;
       this.vel.x *= 0.2; this.vel.z *= 0.2;
     }
 
     // deep water: swim at the surface, slower, no jumping
-    this.swimming = h < SWIM_DEPTH;
+    this.swimming = !this.indoor && h < SWIM_DEPTH;
     if (this.swimming) {
       this.pos.y = SWIM_DEPTH + 0.05 + Math.sin(performance.now() / 400) * 0.06;
       this.vy = 0;
@@ -125,7 +138,7 @@ export class Player {
       if (!frozen && this.grounded && input.pressed('jump')) { this.vy = JUMP; this.grounded = false; }
       this.vy -= GRAVITY * dt;
       this.pos.y += this.vy * dt;
-      const ground = heightAt(this.pos.x, this.pos.z);
+      const ground = this.ground(this.pos.x, this.pos.z);
       if (this.pos.y <= ground) { this.pos.y = ground; this.vy = 0; this.grounded = true; }
       else if (this.grounded && this.pos.y - ground < 0.6 && this.vy <= 0) { this.pos.y = ground; this.vy = 0; } // stick to slopes
       else this.grounded = false;
@@ -167,14 +180,14 @@ export class Player {
     this.pos.x = clamp(this.pos.x, -WORLD_HALF + 120, WORLD_HALF - 120);
     this.pos.z = clamp(this.pos.z, -WORLD_HALF + 120, WORLD_HALF - 120);
     const step = Math.hypot(this.pos.x - old.x, this.pos.z - old.z);
-    const h = heightAt(this.pos.x, this.pos.z);
+    const h = this.ground(this.pos.x, this.pos.z);
     if (h < -0.4) { // scooters do not float
       this.pos.x = old.x; this.pos.z = old.z; this.speed = 0;
       if (!this.splashT || performance.now() - this.splashT > 3000) { this.splashT = performance.now(); world.hud.toast('Lo scooter non galleggia! Scendi (A) per nuotare.'); }
-    } else if (step > 0.001 && (h - heightAt(old.x, old.z)) / step > 1.2) { this.pos.x = old.x; this.pos.z = old.z; this.speed *= 0.3; }
+    } else if (step > 0.001 && (h - this.ground(old.x, old.z)) / step > 1.2) { this.pos.x = old.x; this.pos.z = old.z; this.speed *= 0.3; }
     else if (step < this.speed * dt * 0.5) this.speed *= 0.9; // bumped into something
     this.moved = Math.hypot(this.pos.x - old.x, this.pos.z - old.z);
-    this.pos.y = Math.max(heightAt(this.pos.x, this.pos.z), -0.4);
+    this.pos.y = Math.max(this.ground(this.pos.x, this.pos.z), -0.4);
     this.grounded = true; this.swimming = false; this.vy = 0;
     this.vel.set(Math.sin(this.facing) * this.speed, 0, Math.cos(this.facing) * this.speed);
     this.sync();
@@ -207,13 +220,19 @@ export class Player {
   desiredCamera() {
     const t = this.cameraTarget();
     const cp = Math.cos(this.camPitch);
-    let dist = this.camDist;
+    let dist = this.indoor ? Math.min(this.camDist, 3.4) : this.camDist;
     // pull the camera in front of walls instead of looking through them
-    if (this.towns) for (let s = 1; s < dist; s += 0.5) {
+    if (this.towns && !this.indoor) for (let s = 1; s < dist; s += 0.5) {
       if (this.towns.inside(t.x + Math.sin(this.camYaw) * cp * s, t.z + Math.cos(this.camYaw) * cp * s)) { dist = Math.max(1.5, s - 0.5); break; }
     }
     const p = new THREE.Vector3(t.x + Math.sin(this.camYaw) * cp * dist, t.y + Math.sin(this.camPitch) * dist, t.z + Math.cos(this.camYaw) * cp * dist);
-    const g = Math.max(heightAt(p.x, p.z), 0.3) + 0.7; // never below ground or the sea surface
+    if (this.indoor) { // stay inside the room
+      const b = this.indoor;
+      p.x = clamp(p.x, b.x0, b.x1); p.z = clamp(p.z, b.z0, b.z1);
+      p.y = clamp(p.y, b.y + 0.6, b.ceil - 0.25);
+      return p;
+    }
+    const g = Math.max(this.ground(p.x, p.z), 0.3) + 0.7; // never below ground or the sea surface
     if (p.y < g) p.y = g;
     return p;
   }

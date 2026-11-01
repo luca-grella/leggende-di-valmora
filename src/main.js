@@ -10,6 +10,8 @@ import { ChunkManager } from './world/terrain.js';
 import { Towns } from './world/towns.js';
 import { Trainers } from './world/trainers.js';
 import { Crime } from './world/crime.js';
+import { Interiors } from './world/interiors.js';
+import { Grab } from './world/grab.js';
 import { TOWNS } from './world/heightfield.js';
 import { regionAt } from './world/regions.js';
 import { windUniforms } from './world/vegetation.js';
@@ -48,6 +50,8 @@ class Game {
     this.battle = new Battle(this);
     this.trainers = new Trainers(this.scene);
     this.crime = new Crime(this);
+    this.interiors = new Interiors(this);
+    this.grab = new Grab(this);
     this.input = new Input(canvas, {
       joyBase: $('joy-base'), joyKnob: $('joy-knob'), btnA: $('btn-a'), btnMenu: $('btn-menu'),
       btnMap: $('btn-map'), btnJump: $('btn-jump'), btnRun: $('btn-run'), btnFire: $('btn-fire'),
@@ -68,20 +72,22 @@ class Game {
 
   newState() {
     const start = TOWNS.find((t) => t.region.start);
-    return { v: 1, pos: { x: start.x + 2, z: start.z + 14, facing: Math.PI }, time: 9.5, party: [], box: [], balls: 0, seen: {}, caught: {}, cura: start.region.id, started: false, money: 300, beaten: {}, blaster: false, crimes: 0 };
+    return { v: 1, pos: { x: start.x + 2, z: start.z + 14, facing: Math.PI }, time: 9.5, party: [], box: [], balls: 0, seen: {}, caught: {}, cura: start.region.id, started: false, money: 300, beaten: {}, blaster: false, crimes: 0, bag: { pozione: 2 }, looted: {} };
   }
 
   load() {
     try {
       const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
       // saves from before money and trainers get the new fields
-      if (s && s.v === 1) return { money: 300, beaten: {}, blaster: false, crimes: 0, ...s };
+      if (s && s.v === 1) return { money: 300, beaten: {}, blaster: false, crimes: 0, bag: { pozione: 2 }, looted: {}, ...s };
     } catch { /* private mode or corrupted save: start fresh */ }
     return this.newState();
   }
 
   save() {
-    this.state.pos = { x: this.player.pos.x, z: this.player.pos.z, facing: this.player.facing };
+    // inside a house the game resumes in front of its door
+    const h = this.interiors.room?.house;
+    this.state.pos = h ? { x: h.door.x, z: h.door.z, facing: h.rot } : { x: this.player.pos.x, z: this.player.pos.z, facing: this.player.facing };
     this.state.time = this.sky.time;
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.state)); } catch { /* storage unavailable */ }
   }
@@ -206,6 +212,9 @@ class Game {
   async interact(it) {
     if (it.kind === 'trainer') return this.trainers.talk(it.tr, this);
     if (['fixer', 'scooter', 'stall'].includes(it.kind)) return this.crime.interact(it);
+    if (['door', 'exit', 'rummage', 'shop', 'resident'].includes(it.kind)) return this.interiors.interact(it);
+    if (it.kind === 'grab') { this.grab.pick(it.it); return; }
+    if (it.kind === 'throw') { this.grab.throw(); return; }
     if (it.kind === 'dismount') { this.player.dismount(); return; }
     this.busy = true;
     if (it.kind === 'cura') {
@@ -244,6 +253,8 @@ class Game {
     if (this.battle.active) this.battle.update(input);
     this.trainers.update(dt, this);
     this.crime.update(dt);
+    this.interiors.update(dt);
+    this.grab.update(dt);
 
     const frozen = this.busy || this.hud.modal || this.battle.active;
     if (!this.battle.active) {
@@ -276,7 +287,8 @@ class Game {
     this.mapT -= dt;
     if (this.mapT <= 0) {
       this.mapT = 0.12;
-      this.hud.setPlace(r.name, this.sky.clockText);
+      const room = this.interiors.room?.house;
+      this.hud.setPlace(room ? (room.shop ? `Bottega · ${room.town.region.town.name}` : `Casa a ${room.town.region.town.name}`) : r.name, this.sky.clockText);
       this.hud.drawMinimap(center.x, center.z, this.player.facing, this.crime.mapMarks());
     }
     this.saveT += dt;
@@ -290,7 +302,10 @@ class Game {
   nearestInteraction() {
     if (this.player.vehicle) return { kind: 'dismount' };
     const P = this.player.pos;
-    const all = [this.towns.nearestInteraction(P), this.trainers.nearest(P), this.crime.nearest(P)].filter(Boolean);
+    if (this.grab.held) return this.grab.nearest(P);
+    const all = this.interiors.inside
+      ? [this.interiors.nearest(P), this.grab.nearest(P)].filter(Boolean)
+      : [this.towns.nearestInteraction(P), this.trainers.nearest(P), this.crime.nearest(P), this.interiors.nearest(P), this.grab.nearest(P)].filter(Boolean);
     all.sort((a, b) => a.d - b.d);
     const it = all[0];
     if (it?.kind === 'trainer') it.hint = `A · Parla con ${it.tr.name}`;
@@ -299,7 +314,7 @@ class Game {
 
   checkEncounter(dt) {
     this.cooldown -= dt;
-    if (this.cooldown > 0 || !this.state.started || this.player.moved < 0.01 || this.player.vehicle || this.crime.wanted) return;
+    if (this.cooldown > 0 || !this.state.started || this.player.moved < 0.01 || this.player.vehicle || this.crime.wanted || this.player.indoor) return;
     if (!this.chunks.isTallGrass(this.player.pos.x, this.player.pos.z)) return;
     if (!this.state.party.some((m) => m.hp > 0)) { if (Math.random() < 0.005) this.hud.toast('La tua squadra è esausta: vai al Centro Cura!'); return; }
     this.grassMeters += this.player.moved;

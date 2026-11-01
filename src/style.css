@@ -119,6 +119,10 @@ button { font-family: inherit; cursor: pointer; }
 #battle-actions button:nth-child(1) { background: #fde8e3; border-color: #f2b5a6; }
 #battle-moves button small, #battle-team button small { display: block; font-weight: 500; font-size: 12px; color: #6b7280; margin-top: 3px; }
 #battle-moves .back, #battle-team .back { grid-column: 1 / -1; text-align: center; background: #eee7da; }
+#fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; z-index: 41; transition: opacity 0.25s; }
+#fade.on { opacity: 1; }
+#battle-actions button[data-act="bag"] { grid-column: 1 / -1; }
+#menu-bag { margin-left: 8px; border: 0; border-radius: 99px; padding: 6px 12px; font-weight: 700; background: #7ac74c; color: #fff; }
 #flash { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 40; }
 #flash.on { animation: flash 0.9s ease; }
 @keyframes flash { 0%, 30%, 60% { opacity: 0; } 15%, 45% { opacity: 0.95; } 80% { opacity: 1; background: #000; } 100% { opacity: 0; background: #000; } }

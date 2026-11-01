@@ -6,6 +6,7 @@ import { WORLD_HALF } from '../world/regions.js';
 import { SPECIES, TYPE_COLORS } from '../creatures/species.js';
 import { nameOf, maxHp } from '../creatures/monster.js';
 import * as THREE from 'three';
+import { useFromBag, ITEMS } from '../items.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -259,10 +260,16 @@ export class Hud {
     });
     const st = game.state, total = Object.keys(SPECIES).length;
     const champs = Object.keys(st.beaten).filter((k) => k.startsWith('town-')).length;
-    $('menu-foot').innerHTML = `💰 Monete: <b>${st.money.toLocaleString('it-IT')}</b> · Sfere: <b>${st.balls}</b> · Box: <b>${st.box.length}</b><br>`
+    const bag = Object.keys(ITEMS).filter((id) => id !== 'sfera' && st.bag?.[id]).map((id) => `${ITEMS[id].icon} ${st.bag[id]}`).join(' ');
+    $('menu-foot').innerHTML = `💰 Monete: <b>${st.money.toLocaleString('it-IT')}</b> · Sfere: <b>${st.balls}</b> · Box: <b>${st.box.length}</b>${bag ? ` · Zaino: ${bag}` : ''}<br>`
       + `Diario: <b>${Object.keys(st.seen).length}</b> visti, <b>${Object.keys(st.caught).length}</b> catturati su <b>${total}</b><br>`
       + `Allenatori battuti: <b>${Object.keys(st.beaten).length}</b> (campioni <b>${champs}</b>/9) · Lavoretti loschi: <b>${st.crimes || 0}</b>${st.blaster ? ' · 🎯 Spara-vernice' : ''}<br>`
-      + 'Tocca un Velmon per metterlo in testa alla squadra.';
+      + 'Tocca un Velmon per metterlo in testa alla squadra. <button id="menu-bag">🎒 Zaino</button>';
+    $('menu-bag').onpointerdown = async (e) => {
+      e.stopPropagation();
+      this.closePanels();
+      await useFromBag(game);
+    };
     $('btn-save').onpointerdown = (e) => {
       e.stopPropagation();
       // manual save, on top of the automatic one every few seconds

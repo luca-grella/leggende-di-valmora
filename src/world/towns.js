@@ -56,7 +56,43 @@ function house({ w, d, h, wall, roof, floors = 1 }) {
   }
   g.add(mesh(new THREE.BoxGeometry(0.5, 1.6, 0.5), mat(0x7d6f66), w / 4, H + Math.min(w, d) * 0.3, -d / 4)); // chimney
   g.userData.half = { x: w / 2 + 0.2, z: d / 2 + 0.2 };
+  g.userData.size = { w, d };
   return g;
+}
+
+function signBoard(text) {
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 64;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#2f6fb3'; ctx.fillRect(0, 0, 256, 64);
+  ctx.fillStyle = '#fff'; ctx.font = '800 38px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(text, 128, 34);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.6, 0.1), new THREE.MeshStandardMaterial({ map: t, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: 0.25 }));
+}
+
+// Pushes a circle out of a list of boxes rotated around Y: { x, z, rot, hx, hz }.
+export function collideBoxes(boxes, pos, r) {
+  for (const c of boxes) {
+    if (Math.abs(pos.x - c.x) > 20 || Math.abs(pos.z - c.z) > 20) continue;
+    // world -> box space (inverse of three.js rotation.y)
+    const cos = Math.cos(c.rot), sin = Math.sin(c.rot);
+    const lx = (pos.x - c.x) * cos - (pos.z - c.z) * sin;
+    const lz = (pos.x - c.x) * sin + (pos.z - c.z) * cos;
+    const cx = Math.max(-c.hx, Math.min(c.hx, lx)), cz = Math.max(-c.hz, Math.min(c.hz, lz));
+    const dx = lx - cx, dz = lz - cz, d = Math.hypot(dx, dz);
+    if (d < r) {
+      let nx, nz;
+      if (d > 1e-4) { nx = cx + (dx / d) * r; nz = cz + (dz / d) * r; }
+      else { // inside: push out along the shallowest axis
+        const px = c.hx - Math.abs(lx), pz = c.hz - Math.abs(lz);
+        if (px < pz) { nx = Math.sign(lx || 1) * (c.hx + r); nz = lz; } else { nx = lx; nz = Math.sign(lz || 1) * (c.hz + r); }
+      }
+      pos.x = c.x + nx * cos + nz * sin;
+      pos.z = c.z - nx * sin + nz * cos;
+    }
+  }
 }
 
 function centroCura(wall) {
@@ -107,6 +143,7 @@ export class Towns {
     this.interactables = []; // { x, z, r, kind, data }
     this.npcs = [];
     this.lampLights = [];
+    this.houses = []; // houses that can be entered: { id, town, x, z, rot, door: {x, z}, shop }
     for (const t of TOWNS) this.buildTown(t);
   }
 
@@ -140,7 +177,12 @@ export class Towns {
       const dist = (ring === 1 ? 24 : 48) + rnd() * 6;
       const floors = r.town.big ? 1 + Math.floor(rnd() * 3) : rnd() < 0.3 ? 2 : 1;
       const b = house({ w: 6 + rnd() * 3, d: 5.5 + rnd() * 2.5, h: 3.3, wall: r.town.wall, roof: r.town.roof, floors });
-      addBuilding(b, ang, dist);
+      const shop = i === 5; // the house opposite the Centro Cura is the shop
+      if (shop) { const sg = signBoard('BOTTEGA'); sg.position.set(0, 2.6, b.userData.size.d / 2 + 0.12); b.add(sg); }
+      const hp = addBuilding(b, ang, dist);
+      // the door is on the local +Z side
+      const rot = b.rotation.y, out = b.userData.size.d / 2 + 0.9;
+      this.houses.push({ id: `${r.id}-${i}`, town: t, x: hp.x, z: hp.z, rot, shop, door: { x: hp.x + Math.sin(rot) * out, z: hp.z + Math.cos(rot) * out } });
     }
 
     const w = well();
@@ -205,27 +247,8 @@ export class Towns {
     }
   }
 
-  // Push a circle out of every building box (boxes are rotated around Y).
   collide(pos, r) {
-    for (const c of this.colliders) {
-      if (Math.abs(pos.x - c.x) > 20 || Math.abs(pos.z - c.z) > 20) continue;
-      // world -> box space (inverse of three.js rotation.y)
-      const cos = Math.cos(c.rot), sin = Math.sin(c.rot);
-      const lx = (pos.x - c.x) * cos - (pos.z - c.z) * sin;
-      const lz = (pos.x - c.x) * sin + (pos.z - c.z) * cos;
-      const cx = Math.max(-c.hx, Math.min(c.hx, lx)), cz = Math.max(-c.hz, Math.min(c.hz, lz));
-      const dx = lx - cx, dz = lz - cz, d = Math.hypot(dx, dz);
-      if (d < r) {
-        let nx, nz;
-        if (d > 1e-4) { nx = cx + (dx / d) * r; nz = cz + (dz / d) * r; }
-        else { // inside: push out along the shallowest axis
-          const px = c.hx - Math.abs(lx), pz = c.hz - Math.abs(lz);
-          if (px < pz) { nx = Math.sign(lx || 1) * (c.hx + r); nz = lz; } else { nx = lx; nz = Math.sign(lz || 1) * (c.hz + r); }
-        }
-        pos.x = c.x + nx * cos + nz * sin;
-        pos.z = c.z - nx * sin + nz * cos;
-      }
-    }
+    collideBoxes(this.colliders, pos, r);
   }
 
   // true if the point is inside a building (with some padding)

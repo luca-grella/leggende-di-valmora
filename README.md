@@ -30,6 +30,12 @@ La vecchia versione 2D (stile GBA) è salvata nel tag [`v1-2d`](../../tree/v1-2d
 - **Vita da strada** a Città Fulgida (Er Faina) e Porto Corallo (Zio Murena): consegne a tempo, colpi alle
   bancarelle, corse clandestine a cerchi, lotte clandestine con scommessa. Livello **ricercato** fino a 3 stelle:
   le guardie ti inseguono e, se ti prendono, si lotta. **Scooter** da rubare e **Spara-vernice** che stordisce le guardie.
+- **Case visitabili**: si entra in ogni casa di ogni paese. Dentro ci sono mobili, abitanti con cui parlare e
+  cassetti, armadi e frighi da frugare (monete, Sfere, Pozioni… ma se il padrone di casa ti vede chiama le guardie).
+  Nascondersi in casa fa perdere le tracce alle guardie.
+- **Bottega** in ogni paese (l'edificio con l'insegna, di fronte al Centro Cura): Sfere, Pozioni, Superpozioni, Ravviva.
+  **Zaino** dal menu Squadra o durante le lotte.
+- **Oggetti da prendere e lanciare** (vasi, mele, palle, libri, casse): colpire una guardia la lascia stordita.
 - Salvataggio automatico nel browser e pulsante **💾 Salva** nel menu Squadra.
 
 ## Comandi
@@ -44,7 +50,7 @@ La vecchia versione 2D (stile GBA) è salvata nel tag [`v1-2d`](../../tree/v1-2d
 | Squadra | P o Tab | ☰ |
 | Mappa | M | 🗺 |
 | Spara-vernice | F | 🎯 |
-| Salire/scendere dallo scooter | E | A |
+| Salire/scendere dallo scooter, entrare/uscire, prendere/lanciare | E | A |
 | Indietro | Esc | ✕ |
 
 ## Come è fatto
@@ -53,7 +59,8 @@ La vecchia versione 2D (stile GBA) è salvata nel tag [`v1-2d`](../../tree/v1-2d
   generata dal codice: nessun modello o texture esterni.
 - `src/world/`: regioni, generazione del terreno (`heightfield.js`), pezzi di mondo con due livelli di dettaglio
   (`terrain.js`), alberi ed erba con vento (`vegetation.js`), cielo e giorno/notte (`sky.js`), mare (`water.js`), paesi (`towns.js`),
-  allenatori (`trainers.js`), missioni, guardie e ricercato (`crime.js`), scooter (`scooter.js`), segnalini 3D (`markers.js`).
+  allenatori (`trainers.js`), missioni, guardie e ricercato (`crime.js`), scooter (`scooter.js`), segnalini 3D (`markers.js`),
+  interni delle case e Bottega (`interiors.js`), oggetti da lanciare (`grab.js`); oggetti dello zaino in `src/items.js`.
 - `src/creatures/`: specie, tipi e mosse (`species.js`), modelli 3D dei Velmon (`model.js`), statistiche ed esperienza (`monster.js`).
 - `src/battle/battle.js`: lotte e cattura. `src/ui/hud.js`: interfaccia. `src/player.js`: movimento e camera.
 - Su telefono il gioco usa automaticamente un profilo più leggero (distanza visiva, ombre, densità dell'erba).
@@ -68,7 +75,6 @@ Ogni push su `master` pubblica il gioco su GitHub Pages (`.github/workflows/depl
 
 ## Prossimi passi
 
-- Entrare nelle case, raccogliere e usare oggetti, negozi.
 - Mondo fuori dai paesi più pieno: persone, oggetti, luoghi da scoprire.
 - Una lunga storia principale e tante missioni secondarie, con relazioni e scene romantiche per adulti (avviso 18+ e interruttore per disattivarle).
 - Grafica molto più curata (luci, materiali, modelli più dettagliati).

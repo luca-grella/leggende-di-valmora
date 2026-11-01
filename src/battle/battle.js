@@ -8,6 +8,7 @@ import { SPECIES, MOVES, effectiveness, TYPE_COLORS } from '../creatures/species
 import { buildCreature } from '../creatures/model.js';
 import { nameOf, stats, maxHp, gainXp, xpForLevel, pendingEvolution, evolve } from '../creatures/monster.js';
 import { hpColor, typeBadges } from '../ui/hud.js';
+import { useFromBag } from '../items.js';
 
 const $ = (id) => document.getElementById(id);
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -360,6 +361,13 @@ export class Battle {
         await this.msg(`Torna, ${nameOf(this.ally)}!`, 700);
         this.sendOut(st.party[i]);
         await this.msg(`Vai, ${nameOf(this.ally)}!`, 800);
+        await this.attack(foe, this.ally, this.foeMove(), this.foeModel, this.allyModel, 'ally');
+      } else if (act === 'bag') {
+        $('battle-actions').hidden = true;
+        const msg = await useFromBag(this.game, true);
+        if (!msg) continue;
+        this.card('ally', this.ally);
+        await this.msg(msg, 1300);
         await this.attack(foe, this.ally, this.foeMove(), this.foeModel, this.allyModel, 'ally');
       } else if (act === 'run') {
         if (tr) { await this.msg('Non si scappa da una sfida!', 1200); continue; }

@@ -425,6 +425,14 @@ export class Crime {
     else this.game.hud.toast('Colpita! La guardia è stordita.', 1400);
   }
 
+  // hit by a thrown object: dizzy for a while, no paint
+  bonk(g) {
+    g.stun = 8; g.state = 'stunned';
+    g.bubble.visible = false;
+    if (!this.wanted) this.addWanted(1, 'Hai colpito una guardia!');
+    else this.game.hud.toast('Bersaglio colpito!', 1200);
+  }
+
   unsplat(g) {
     const body = g.obj.userData.body;
     for (const c of [...body.children]) if (c.userData.paint) body.remove(c);
@@ -500,6 +508,8 @@ export class Crime {
       if (g.state === 'chase') {
         if (!this.wanted || !inTown) { g.state = 'return'; g.bubble.visible = false; continue; }
         g.bubble.visible = true;
+        // hiding inside a house: the guards lose sight of the player
+        if (game.player.indoor) { o.userData.animate(dt, 0); continue; }
         if (d < 35) chasing = true;
         if (this.grace > 0) { o.userData.animate(dt, 0); continue; }
         tx = P.x; tz = P.z; sp = chaseSpeed;
