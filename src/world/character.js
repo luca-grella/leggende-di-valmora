@@ -32,6 +32,9 @@ const lathe = (pts, seg = 14) => new THREE.LatheGeometry(pts.map(([r, y]) => new
 const TORSO = lathe([[0.001, 0], [0.15, 0.0], [0.16, 0.08], [0.135, 0.22], [0.15, 0.33], [0.17, 0.43], [0.155, 0.5], [0.06, 0.55], [0.001, 0.56]]);
 const HIPS = lathe([[0.001, -0.1], [0.12, -0.08], [0.155, 0.0], [0.15, 0.06], [0.001, 0.07]]);
 
+// which realistic person a look maps to (the same one in the world and in scenes)
+export const personSeed = ({ skin = 0xf1c7a3, shirt = 0xd94a3d, pants = 0x2e3f63, hair = 0x3b2a1e } = {}) => Math.abs((shirt * 7 + hair * 13 + pants * 3 + skin) | 0);
+
 export function makeCharacter({ skin = 0xf1c7a3, shirt = 0xd94a3d, pants = 0x2e3f63, shoes = 0x2a2a2a, hair = 0x3b2a1e, hat = 0xd94a3d, hatBrim = 0xffffff, backpack = 0xf2c14e, scale = 1, longHair = false, top = null } = {}) {
   const root = new THREE.Group();
   const body = new THREE.Group();

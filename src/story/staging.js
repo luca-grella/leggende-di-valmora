@@ -74,6 +74,7 @@ export class Staging {
     if (this.stage === 'seat') return this.seat(kind);
     const faceMe = this.face, faceHer = this.face + Math.PI;
     her.userData.setBarefoot?.(['feet', 'legs'].includes(kind) || her.userData.barefoot);
+    if (me.userData.rb) return this.actRB(kind, faceMe, faceHer);
     // back to standing, facing each other
     await tween([[me, NEUTRAL], [her, NEUTRAL]], [[her, { ...this.at(0), ry: faceMe }], [me, { ...this.at(0.75), ry: faceHer }]], 350);
     this.camera(0.4, 2.6, 1.5);
@@ -124,9 +125,48 @@ export class Staging {
     }
   }
 
+  // realistic actors: same places and cameras, bones posed on top of their breathing
+  async actRB(kind, faceMe, faceHer) {
+    const { me, her } = this;
+    const [pm, ph] = RB_POSES[kind] || [{}, { headTilt: 0.2 }];
+    me.userData.setPose({}); her.userData.setPose({});
+    await tween([], [[her, { ...this.at(0), ry: faceMe }], [me, { ...this.at(0.75), ry: faceHer }]], 350);
+    const spot = {
+      kiss: [this.at(0.36), faceHer], hair: [this.at(0.5), faceHer], hug: [this.at(0.3), faceHer], guide: [this.at(0.34), faceHer],
+      shoulders: [this.at(-0.4), faceMe], back: [this.at(-0.4), faceMe],
+      legs: [this.at(0.55, 0.45), faceMe - Math.PI / 2], feet: [this.at(1.45), faceHer], feetKiss: [this.at(1.45), faceHer], feetLick: [this.at(1.45), faceHer],
+    }[kind];
+    let pos = spot?.[0], ry = spot?.[1];
+    if (!spot && ['neck', 'ear', 'whisper'].includes(kind)) { pos = this.at(0.2, 0.3); ry = Math.atan2(this.anchor.x - pos.x, this.anchor.z - pos.z); }
+    me.userData.setPose(pm); her.userData.setPose(ph);
+    if (pos) await tween([], [[me, { ...pos, ry }]], 650);
+    const low = ['legs', 'feet', 'feetKiss', 'feetLick'].includes(kind);
+    if (low) this.camera(kind === 'legs' ? 1.2 : 0.7, 2.8, 1.3, 0.45, kind === 'legs' ? 0.5 : 0.7);
+    else if (kind === 'shoulders' || kind === 'back') this.camera(0.3, 2.4, 1.6, 1.25, -0.2);
+    else this.camera(0.25, 1.7, 1.6, 1.5, 0.2);
+    // a gentle repeated movement while she answers
+    const T = me.userData.target, H = her.userData.target;
+    return loop((t) => {
+      const k = Math.sin(t * 5);
+      if (kind === 'shoulders' || kind === 'back' || kind === 'feet' || kind === 'legs') { T.elbow_L = (pm.elbow_L || 0) + k * 0.25; T.elbow_R = (pm.elbow_R || 0) - k * 0.25; }
+      else if (kind === 'hair') T.armOut_R = -0.2 + k * 0.15;
+      else if (kind === 'kiss' || kind === 'guide' || kind === 'hug') { T.headTilt = Math.sin(t * 1.5) * 0.12; H.headTilt = -Math.sin(t * 1.5) * 0.12; }
+      else if (kind.startsWith('feet')) T.nod = 0.4 + Math.sin(t * 2.5) * 0.1;
+      else H.headTilt = (ph.headTilt || 0.2) + Math.sin(t * 2) * 0.05;
+    });
+  }
+
   // seated at a table or on the scooter: gestures only
   async seat(kind) {
     const { me, her } = this;
+    if (me.userData.rb) {
+      const sit = { drop: -0.45, ...both('hip', 1.5), ...both('knee', 1.5) };
+      const close = ['Baciala', 'kiss', 'guide', 'neck'].includes(kind);
+      me.userData.setPose({ ...sit, ...(close ? { lean: 0.35 } : { armF_R: 1.1, elbow_R: 0.4 }) });
+      her.userData.setPose({ ...sit, ...(close ? { lean: 0.35 } : { headTilt: 0.25 }) });
+      await sleep(500);
+      return loop((t) => { her.userData.target.headTilt = (close ? 0 : 0.25) + Math.sin(t * 2) * 0.08; });
+    }
     const J = (o) => o.userData;
     if (kind === 'kiss' || kind === 'guide' || kind === 'neck') {
       await tween([[me, { lean: 0.35, headZ: 0.1 }], [her, { lean: 0.35, headZ: -0.1 }]], [], 500);
@@ -139,6 +179,12 @@ export class Staging {
   // lying in bed: turn towards each other, heads close
   async bed(kind) {
     const { me, her } = this;
+    if (me.userData.rb) {
+      const close = ['kiss', 'neck', 'ear', 'whisper', 'guide', 'hug', 'hair'].includes(kind);
+      await tween([], [[me, { ry: close ? 0.45 : 0.15 }], [her, { ry: close ? -0.45 : -0.15 }]], 600);
+      me.userData.setPose({ headTilt: close ? -0.3 : 0 }); her.userData.setPose({ headTilt: close ? 0.3 : 0 });
+      return loop((t) => { her.userData.target.nod = Math.sin(t * 1.4) * 0.1; });
+    }
     const close = ['kiss', 'neck', 'ear', 'whisper', 'guide', 'hug', 'hair'].includes(kind);
     await tween([[me, { rollY: close ? 0.45 : 0.15, headZ: close ? -0.25 : 0 }], [her, { rollY: close ? -0.45 : -0.15, headZ: close ? 0.25 : 0 }]], [], 600);
     return loop((t) => { her.userData.limbs.head.rotation.y = Math.sin(t * 1.4) * 0.1; });
@@ -155,4 +201,68 @@ export const ACT = {
   'Accarezzale le gambe': 'legs', 'Massaggiale i piedi': 'feet', 'Baciale i piedi': 'feetKiss', 'Leccale i piedi': 'feetLick',
   'Baciale il collo': 'neck', 'Leccale il collo': 'neck', "Mordicchiale l'orecchio": 'ear', 'Stringila a te': 'hug',
   "Sussurrale qualcosa all'orecchio": 'whisper', 'Lasciati guidare da lei…': 'guide',
+};
+
+// ---------- realistic actors (Rocketbox) ----------
+// A person whose base motion is a captured clip (breathing) and on top of it
+// the scene bends bones: [bone, local axis, sign] measured on the Biped rig.
+const RIG = {
+  armF_L: ['Bip01_L_UpperArm', 'z', -1], armF_R: ['Bip01_R_UpperArm', 'z', -1],
+  armOut_L: ['Bip01_L_UpperArm', 'y', -1], armOut_R: ['Bip01_R_UpperArm', 'y', 1],
+  elbow_L: ['Bip01_L_Forearm', 'z', -1], elbow_R: ['Bip01_R_Forearm', 'z', -1],
+  hip_L: ['Bip01_L_Thigh', 'z', 1], hip_R: ['Bip01_R_Thigh', 'z', 1],
+  knee_L: ['Bip01_L_Calf', 'z', -1], knee_R: ['Bip01_R_Calf', 'z', -1],
+  lean: ['Bip01_Spine', 'z', 1], tilt: ['Bip01_Spine', 'y', 1], nod: ['Bip01_Neck', 'z', 1], headTilt: ['Bip01_Neck', 'y', 1],
+};
+const AXES = { x: new THREE.Vector3(1, 0, 0), y: new THREE.Vector3(0, 1, 0), z: new THREE.Vector3(0, 0, 1) };
+
+export function makeActor(gender, seed, peopleApi) {
+  if (!peopleApi.peopleReady()) return null;
+  const p = peopleApi.makePerson(gender, seed);
+  const root = new THREE.Group();
+  root.add(p.obj);
+  const bones = {};
+  p.obj.traverse((b) => { if (b.isBone) bones[b.name] = b; });
+  const cur = { drop: 0 }, target = { drop: 0 };
+  let on = true, last = performance.now();
+  root.userData.rb = true;
+  root.userData.setPose = (pose) => { for (const k of Object.keys(target)) target[k] = 0; Object.assign(target, pose); };
+  root.userData.target = target;
+  root.userData.dispose = () => { on = false; };
+  root.userData.setBarefoot = () => {}; // shoes are part of these models
+  (async () => {
+    while (on) {
+      const now = performance.now(), dt = Math.min((now - last) / 1000, 0.1);
+      last = now;
+      p.mixer.update(dt);
+      for (const k of new Set([...Object.keys(target), ...Object.keys(cur)])) {
+        cur[k] = (cur[k] || 0) + ((target[k] || 0) - (cur[k] || 0)) * Math.min(dt * 5, 1);
+        const r = RIG[k];
+        if (r && bones[r[0]] && cur[k]) bones[r[0]].rotateOnAxis(AXES[r[1]], r[2] * cur[k]);
+      }
+      p.obj.position.y = cur.drop;
+      await sleep(33);
+    }
+  })();
+  return root;
+}
+
+// poses for realistic actors, per choice: [me, her]
+const both = (k, v) => ({ [`${k}_L`]: v, [`${k}_R`]: v });
+const SIT = { drop: -0.86, ...both('hip', 1.42), ...both('armF', -0.6), lean: -0.2 };
+const KNEEL_RB = { drop: -0.45, hip_L: 1.5, knee_L: 1.55, hip_R: -0.1, knee_R: 1.6 };
+export const RB_POSES = {
+  kiss: [{ lean: 0.15, nod: 0.12, ...both('armF', 0.5), ...both('elbow', 0.9) }, { lean: 0.12, nod: 0.12, ...both('armF', 1.0), ...both('armOut', 0.25), ...both('elbow', 1.2) }],
+  hair: [{ armF_R: 2.3, elbow_R: 1.0, armOut_R: -0.2 }, { headTilt: 0.28 }],
+  shoulders: [{ ...both('armF', 1.55), ...both('armOut', -0.25), ...both('elbow', 0.5) }, { nod: 0.3 }],
+  back: [{ ...both('armF', 1.0), ...both('elbow', 0.6), lean: 0.1 }, { nod: 0.2 }],
+  legs: [{ ...KNEEL_RB, ...both('armF', 0.9), ...both('elbow', 0.4), lean: 0.25 }, SIT],
+  feet: [{ ...KNEEL_RB, ...both('armF', 0.7), ...both('elbow', 0.3), lean: 0.4 }, SIT],
+  feetKiss: [{ ...KNEEL_RB, ...both('armF', 0.5), lean: 0.9, nod: 0.4 }, SIT],
+  feetLick: [{ ...KNEEL_RB, ...both('armF', 0.5), lean: 0.9, nod: 0.4 }, SIT],
+  neck: [{ headTilt: -0.3, lean: 0.12, armF_L: 0.6, elbow_L: 0.8 }, { headTilt: 0.3 }],
+  ear: [{ headTilt: -0.3, lean: 0.12 }, { headTilt: 0.3 }],
+  whisper: [{ headTilt: -0.25, lean: 0.1 }, { headTilt: 0.2, nod: 0.1 }],
+  hug: [{ ...both('armF', 1.3), ...both('armOut', -0.6), ...both('elbow', 1.4), lean: 0.08 }, { ...both('armF', 1.3), ...both('armOut', -0.6), ...both('elbow', 1.4), headTilt: 0.2 }],
+  guide: [{ ...both('armF', 1.0), ...both('armOut', -0.5), ...both('elbow', 0.8), lean: 0.1 }, { ...both('armF', 2.0), ...both('armOut', -0.2), ...both('elbow', 0.6), lean: 0.12 }],
 };

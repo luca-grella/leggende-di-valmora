@@ -11,7 +11,13 @@ import { bubble, beacon } from '../world/markers.js';
 import { buildCreature } from '../creatures/model.js';
 import { createMonster } from '../creatures/monster.js';
 import { add as addItem } from '../items.js';
-import { Staging, ACT } from './staging.js';
+import { Staging, ACT, makeActor } from './staging.js';
+import * as PEOPLE from '../world/people.js';
+import { personSeed } from '../world/character.js';
+
+// a realistic person for scenes when available, otherwise the posable figure
+const actor = (g, look, fallback) => makeActor(g, personSeed(look), PEOPLE) || fallback();
+const drop = (...objs) => objs.forEach((o) => o?.userData.dispose?.());
 
 const town = (id) => TOWNS.find((t) => t.region.id === id);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -426,7 +432,7 @@ export class Quests {
       const k = i / 30;
       a.position.copy(mid).addScaledVector(dir, -0.75 + k * 0.48); a.position.y = pa.y;
       b.position.copy(mid).addScaledVector(dir, 0.75 - k * 0.48); b.position.y = pb.y;
-      a.userData.body.rotation.x = b.userData.body.rotation.x = k * 0.14;
+      for (const o of [a, b]) { if (o.userData.rb) o.userData.setPose({ lean: k * 0.15, nod: k * 0.12 }); else o.userData.body.rotation.x = k * 0.14; }
       await sleep(30);
     }
     const heart = bubble('❤', '#ff3d68');
@@ -468,7 +474,7 @@ export class Quests {
       const o = list[i];
       const hs = [];
       for (let k = 0; k < (o.hearts || 1); k++) {
-        const h = bubble('❤', '#ff3d68'); h.scale.setScalar(0.35);
+        const h = bubble('❤', '#ff3d68'); h.scale.setScalar(0.2);
         h.position.copy(her.position).add(new THREE.Vector3((k - (o.hearts || 1) / 2 + 0.5) * 0.45, 2.0 + k * 0.15, 0));
         this.game.scene.add(h); hs.push(h);
       }
@@ -504,7 +510,7 @@ export class Quests {
     // stand-ins for both of you, so the scene can move them freely
     obj.userData.out = true; obj.visible = false; P.model.visible = false;
     const y = heightAt(spot.x, spot.z);
-    const me = makeCharacter({ hat: null, backpack: null }), her = makeCharacter({ hat: null, backpack: null, longHair: true, ...girl.look });
+    const me = actor('m', {}, () => makeCharacter({ hat: null, backpack: null })), her = actor('f', girl.look, () => makeCharacter({ hat: null, backpack: null, longHair: true, ...girl.look }));
     me.position.set(spot.x - 0.5, y, spot.z); me.rotation.y = Math.PI / 2;
     her.position.set(spot.x + 1.5, heightAt(spot.x + 1.5, spot.z), spot.z); her.rotation.y = -Math.PI / 2;
     game.scene.add(me, her);
@@ -517,6 +523,7 @@ export class Quests {
     await this.intimacy(her, 2, girl.name, girl.guide, girl.feet, [], null, { me, stage: 'stand' });
     await hud.say(girl.name, girl.invite);
     game.scene.remove(heart, me, her);
+    drop(me, her);
     obj.userData.out = false; obj.visible = true; P.model.visible = true;
     game.cine = null;
     game.busy = false;
@@ -545,11 +552,11 @@ export class Quests {
     const glow = new THREE.PointLight(0xff9a4d, 9, 9, 1.6); glow.position.set(o.x - 2.5, y + 1.2, o.z - 1.5); mood.add(glow);
     game.scene.add(mood);
     room.g.traverse((m) => { if (m.isPointLight) m.userData.base ??= m.intensity, m.intensity = m.userData.base * 0.35; });
-    const her = makeCharacter({ hat: null, backpack: null, longHair: true, ...girl.look });
+    const her = actor('f', girl.look, () => makeCharacter({ hat: null, backpack: null, longHair: true, ...girl.look }));
     her.position.set(o.x + 0.8, y, o.z + 0.4);
     game.scene.add(her);
     P.place(o.x - 0.6, o.z + 0.4, Math.PI / 2);
-    const meS = makeCharacter({ hat: null, backpack: null });
+    const meS = actor('m', {}, () => makeCharacter({ hat: null, backpack: null }));
     meS.position.set(o.x - 0.6, y, o.z + 0.4); meS.rotation.y = Math.PI / 2;
     game.scene.add(meS); P.model.visible = false;
     const look = new THREE.Vector3(o.x + 0.1, y + 1.55, o.z + 0.4);
@@ -559,9 +566,11 @@ export class Quests {
     await this.intimacy(her, 3, girl.name, girl.guide, girl.feet, [], null, { me: meS, stage: 'stand' });
     await hud.say(girl.name, girl.undress.slice(0, 2));
     // swap both to their underwear
-    const meU = makeCharacter({ shirt: SKIN, pants: 0x1d3557, hat: null, backpack: null });
-    const herU = makeCharacter({ hat: null, backpack: null, longHair: true, ...girl.look, shirt: girl.look.skin, pants: girl.under, top: girl.under });
-    for (const [from, to] of [[meS, meU], [her, herU]]) { to.position.copy(from.position); to.rotation.copy(from.rotation); to.userData.body.rotation.x = 0.14; to.userData.setBarefoot(true); to.userData.barefoot = true; game.scene.add(to); from.visible = false; }
+    // the light figures can change into underwear; the realistic people stay as they are
+    const real = !!meS.userData.rb;
+    const meU = real ? meS : makeCharacter({ shirt: SKIN, pants: 0x1d3557, hat: null, backpack: null });
+    const herU = real ? her : makeCharacter({ hat: null, backpack: null, longHair: true, ...girl.look, shirt: girl.look.skin, pants: girl.under, top: girl.under });
+    if (!real) for (const [from, to] of [[meS, meU], [her, herU]]) { to.position.copy(from.position); to.rotation.copy(from.rotation); to.userData.body.rotation.x = 0.14; to.userData.setBarefoot(true); to.userData.barefoot = true; game.scene.add(to); from.visible = false; }
     await hud.say(girl.name, girl.undress.slice(2));
     await this.intimacy(herU, 2, girl.name, girl.guide, girl.feet, [], null, { me: meU, stage: 'stand' });
     // into bed, under the blanket
@@ -577,7 +586,7 @@ export class Quests {
     blanket.add(sheet);
     game.scene.add(blanket);
     for (const [c, dx] of [[meU, -0.33], [herU, 0.33]]) {
-      c.userData.body.rotation.x = 0;
+      if (c.userData.rb) c.userData.setPose({}); else c.userData.body.rotation.x = 0;
       c.rotation.set(LIE, 0, 0);
       c.position.set(bed.x + dx, y + 0.8, bed.z + 1.0);
     }
@@ -591,6 +600,7 @@ export class Quests {
     hud.toast(`❤️ Tu e ${girl.name} siete una coppia`, 2600);
     // back on your feet
     for (const o2 of [meU, herU, blanket, heart, mood, meS]) game.scene.remove(o2);
+    drop(meS, her);
     room.g.traverse((m) => { if (m.isPointLight && m.userData.base) m.intensity = m.userData.base; });
     game.scene.remove(her);
     P.model.visible = true;

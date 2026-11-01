@@ -7,6 +7,9 @@
 import * as THREE from 'three';
 import { mulberry32 } from '../core/noise.js';
 import { makeScooter } from '../world/scooter.js';
+import * as PEOPLE from '../world/people.js';
+import { makeActor } from './staging.js';
+import { personSeed } from '../world/character.js';
 import { TOWNS, heightAt } from '../world/heightfield.js';
 import { makeCharacter } from '../world/character.js';
 import { findLand } from '../world/props.js';
@@ -295,8 +298,9 @@ export class Romance {
     }
     game.scene.add(props);
     // stand-ins for the two of you (the real models keep following the game), in swimwear for a swim
-    me = O.swim ? makeCharacter({ shirt: 0xf1c7a3, pants: 0x1565c0, hat: null, backpack: null }) : makeCharacter();
-    her = makeCharacter({ hat: null, backpack: null, longHair: true, ...g.look, ...(O.swim ? { shirt: g.look.skin, pants: g.under, top: g.under } : {}) });
+    const real = !O.swim && PEOPLE.peopleReady();
+    me = (real && makeActor('m', personSeed({}), PEOPLE)) || (O.swim ? makeCharacter({ shirt: 0xf1c7a3, pants: 0x1565c0, hat: null, backpack: null }) : makeCharacter());
+    her = (real && makeActor('f', personSeed(g.look), PEOPLE)) || makeCharacter({ hat: null, backpack: null, longHair: true, ...g.look, ...(O.swim ? { shirt: g.look.skin, pants: g.under, top: g.under } : {}) });
     extraModels = [me, her];
     for (const c of extraModels) game.scene.add(c);
     P.model.visible = false; g.obj.visible = false; g.out = true;
@@ -305,7 +309,8 @@ export class Romance {
     else if (kind === 'osteria') { place(me, -0.95, 0, Math.PI / 2, -0.42); place(her, 0.95, 0, -Math.PI / 2, -0.42); me.userData.sitting = her.userData.sitting = true; }
     else if (kind === 'bagno') { place(me, -0.45, 0, Math.PI / 2, -0.5); place(her, 0.45, 0, -Math.PI / 2, -0.5); }
     else { place(me, -0.45, 0.2, Math.PI / 2, -0.83); place(her, 0.45, 0.2, -Math.PI / 2, -0.83); me.userData.sitting = her.userData.sitting = true; } // sitting on the blanket
-    me.userData.animate(0, 0); her.userData.animate(0, 0);
+    me.userData.animate?.(0, 0); her.userData.animate?.(0, 0);
+    if (me.userData.rb) { me.position.y = her.position.y = y; } // realistic people: the scene poses them from standing
     const look = new THREE.Vector3(spot.x, y + 1.1, spot.z);
     game.cine = { pos: new THREE.Vector3(spot.x + 2.4, y + 2.0, spot.z + 2.6), look };
     if (kind === 'picnic') { me.position.y = her.position.y = y; } // on their feet on the blanket, the scene seats them as needed
@@ -318,7 +323,7 @@ export class Romance {
     hud.toast(`❤ Intesa con ${g.name}: ${st.bond[g.id]}`, 2000);
     // tidy up
     game.scene.remove(props);
-    for (const c of extraModels) game.scene.remove(c);
+    for (const c of extraModels) { game.scene.remove(c); c.userData.dispose?.(); }
     P.model.visible = true; g.obj.visible = true; g.out = false;
     g.obj.position.copy(homeBefore); g.obj.rotation.set(0, Math.atan2(g.t.x - g.x, g.t.z - g.z), 0);
     P.place(spot.x - 1.5, spot.z + 1.5, 0);
