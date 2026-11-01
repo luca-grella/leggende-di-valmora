@@ -49,7 +49,8 @@ La vecchia versione 2D (stile GBA) è salvata nel tag [`v1-2d`](../../tree/v1-2d
   la testa. Ognuna ha un carattere (dolce, audace, timida, ironica) e un modo diverso di conquistarla: un regalo da
   portarle in mano, un regalo in monete, una lotta, battere il Campione del paese o catturare tante specie. Poi
   l'appuntamento all'ora che preferisce e la notte a casa sua, scegliendo cosa fare (baci, carezze, massaggi a spalle,
-  schiena, gambe e piedi, baci sul collo e sui piedi). Niente nudità o atti mostrati; ci si può tornare quando si vuole.
+  schiena, gambe e piedi, baci e leccate su collo e piedi, mordicchiare l'orecchio, "lasciati guidare da lei" con
+  battute diverse per ogni carattere). Niente nudità o atti mostrati; ci si può tornare quando si vuole.
 - **Mondo più pieno**: accampamenti con campeggiatori, rovine, 35 forzieri nascosti, cartelli stradali, viaggiatori sulle strade.
 - **Grafica**: texture fotografiche CC0 da [Poly Haven](https://polyhaven.com) (prati, rocce, sabbia, ciottoli, intonaco,
   tegole, corteccia, tessuti), luce ambientale presa dal cielo, persone con proporzioni realistiche.

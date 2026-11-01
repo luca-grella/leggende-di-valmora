@@ -437,7 +437,7 @@ export class Quests {
 
   // Tender moments with choices: kisses, caresses, massages, whispers. Nothing explicit.
   // Tender moments with choices. Nothing explicit is ever shown or described.
-  async intimacy(her, rounds = 3, name = 'Marina') {
+  async intimacy(her, rounds = 3, name = 'Marina', guide = null) {
     const hud = this.game.hud;
     const OPTS = [
       { icon: '💋', label: 'Baciala', lines: ['Mmh... ancora.', 'Non smettere.', 'Baci come se fosse l\'ultima volta.'] },
@@ -448,18 +448,26 @@ export class Quests {
       { icon: '🦶', label: 'Massaggiale i piedi', lines: ['Dopo una giornata in piedi è il paradiso.', 'Se mi massaggi così i piedi, ti sposo.'] },
       { icon: '👣', label: 'Baciale i piedi', lines: ['Ehi! ...Che tipo strano che sei. Mi piace.', 'Nessuno l\'aveva mai fatto. Fallo ancora.'] },
       { icon: '😘', label: 'Baciale il collo', lines: ['Ehi... così mi fai venire i brividi.', 'Questo è sleale. Rifallo.'] },
+      { icon: '🦶', label: 'Leccale i piedi', lines: ['Ahahah! No, il solletico no! ...Va bene, ancora un po\'.', 'Sei proprio strano. E la cosa mi piace un sacco.'] },
+      { icon: '👅', label: 'Leccale il collo', lines: ['Ah! ...Sei un animale. Continua.', 'Mi stai facendo impazzire, lo sai?'] },
+      { icon: '😏', label: 'Mordicchiale l\'orecchio', lines: ['Ehi, piano! ...No, non smettere.', 'Il mio punto debole. Come facevi a saperlo?'] },
       { icon: '🤗', label: 'Stringila a te', lines: ['Mi piace stare così.', 'Sento il tuo cuore che batte forte...'] },
       { icon: '🗣️', label: 'Sussurrale qualcosa all\'orecchio', lines: ['Ma che cose dici! ...Dillo ancora.', 'Sei proprio un furfante, sai?'] },
+      // allusive only: nothing is named or described
+      { icon: '🔥', label: 'Lasciati guidare da lei…', lines: guide || ['Chiudi gli occhi... e fidati di me.', 'Mmh... vedo che hai capito.'], hearts: 3 },
     ];
     for (let r = 0; r < rounds; r++) {
       const i = await hud.choose(`Cosa fai? ${'❤'.repeat(r + 1)}`, [...OPTS.map((o) => ({ icon: o.icon, label: o.label })), { icon: '➡️', label: r ? 'Continua' : 'Lascia fare a lei' }]);
       if (i < 0 || i >= OPTS.length) break;
       const o = OPTS[i];
-      const h = bubble('❤', '#ff3d68'); h.scale.setScalar(0.35);
-      h.position.copy(her.position).y += 2.0;
-      this.game.scene.add(h);
-      await hud.say(name, [o.lines[Math.floor(Math.random() * o.lines.length)]]);
-      this.game.scene.remove(h);
+      const hs = [];
+      for (let k = 0; k < (o.hearts || 1); k++) {
+        const h = bubble('❤', '#ff3d68'); h.scale.setScalar(0.35);
+        h.position.copy(her.position).add(new THREE.Vector3((k - (o.hearts || 1) / 2 + 0.5) * 0.45, 2.0 + k * 0.15, 0));
+        this.game.scene.add(h); hs.push(h);
+      }
+      await hud.say(name, o.hearts ? o.lines : [o.lines[Math.floor(Math.random() * o.lines.length)]]);
+      hs.forEach((h) => this.game.scene.remove(h));
     }
   }
 
@@ -470,6 +478,7 @@ export class Quests {
       afterKiss: ['Mmh... baci bene, straniero.'], invite: ['Casa mia è qui vicino. Non mi va che questa serata finisca in spiaggia.'],
       home: ['Benvenuto nel mio piccolo regno.', 'Chiudi la porta... e smettila di guardarti intorno. Guarda me.'],
       undress: ['Fa caldo qui dentro, non trovi?', 'Lascia che ti aiuti con quella maglietta...', 'Molto meglio così.', 'Allora, straniero... il letto è da quella parte. Mi ci porti tu?'],
+      guide: ['Shh... lascia fare a me, straniero.', 'Ecco... così. Vedo che impari in fretta.'],
       bed: ['Mmh... finalmente.'], end: ['Shh. Niente parole, adesso.', '...', 'Wow. Non male, per uno che viene da Borgo Alba.', 'Resta stanotte. Domattina ti preparo il caffè... se mi lasci alzare.'],
     };
   }
@@ -486,7 +495,7 @@ export class Quests {
     await hud.say(girl.name, girl.date);
     const heart = await this.kiss(P.model, obj);
     await hud.say(girl.name, girl.afterKiss);
-    await this.intimacy(obj, 2, girl.name);
+    await this.intimacy(obj, 2, girl.name, girl.guide);
     await hud.say(girl.name, girl.invite);
     game.scene.remove(heart);
     P.model.userData.body.rotation.x = obj.userData.body.rotation.x = 0;
@@ -514,14 +523,14 @@ export class Quests {
     game.cine = { pos: new THREE.Vector3(o.x + 0.1, y + 1.9, o.z + 3.2), look };
     await hud.say(girl.name, girl.home);
     const heart = await this.kiss(P.model, her);
-    await this.intimacy(her, 3, girl.name);
+    await this.intimacy(her, 3, girl.name, girl.guide);
     await hud.say(girl.name, girl.undress.slice(0, 2));
     // swap both to their underwear
     const meU = makeCharacter({ shirt: SKIN, pants: 0x1d3557, hat: null, backpack: null });
     const herU = makeCharacter({ hat: null, backpack: null, longHair: true, ...girl.look, shirt: girl.look.skin, pants: girl.under, top: girl.under });
     for (const [from, to] of [[P.model, meU], [her, herU]]) { to.position.copy(from.position); to.rotation.copy(from.rotation); to.userData.body.rotation.x = 0.14; game.scene.add(to); from.visible = false; }
     await hud.say(girl.name, girl.undress.slice(2));
-    await this.intimacy(herU, 2, girl.name);
+    await this.intimacy(herU, 2, girl.name, girl.guide);
     // into bed, under the blanket
     const bed = { x: o.x - 3.9, z: o.z - 2.7 };
     // the blanket covers them from the chest down
@@ -544,7 +553,7 @@ export class Quests {
     // from the foot of the bed: two heads on the pillows, the rest under the blanket
     game.cine = { pos: new THREE.Vector3(bed.x + 1.9, y + 2.5, bed.z + 1.2), look: new THREE.Vector3(bed.x, y + 1.15, bed.z - 0.45) };
     await hud.say(girl.name, girl.bed);
-    await this.intimacy(herU, 3, girl.name);
+    await this.intimacy(herU, 3, girl.name, girl.guide);
     await hud.say(girl.name, girl.end);
     hud.toast(`❤️ Tu e ${girl.name} siete una coppia`, 2600);
     // back on your feet

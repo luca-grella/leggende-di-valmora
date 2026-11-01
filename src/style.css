@@ -179,3 +179,5 @@ button { font-family: inherit; cursor: pointer; }
 #mission-goal { grid-column: 2; }
 #mission-timer { grid-column: 3; }
 #banner b { font-family: var(--title); }
+/* long choice lists scroll instead of overflowing small screens */
+#choice { max-height: calc(100% - 40px - var(--safe-t) - var(--safe-b)); overflow-y: auto; -webkit-overflow-scrolling: touch; }
