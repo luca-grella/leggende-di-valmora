@@ -58,9 +58,16 @@ export function makeCharacter({ skin = 0xf1c7a3, shirt = 0xd94a3d, pants = 0x2e3
   legR.add(part(new THREE.BoxGeometry(0.17, 0.1, 0.28), shoes, 0, -0.73, 0.05));
   body.add(armL, armR, legL, legR);
   root.scale.setScalar(scale);
+  root.userData.body = body;
 
   let phase = 0;
   root.userData.animate = (dt, speed) => {
+    if (root.userData.sitting) { // riding: knees forward, hands on the handlebar
+      legL.rotation.x = legR.rotation.x = -1.35;
+      armL.rotation.x = armR.rotation.x = -1.1;
+      body.position.y = 0; body.rotation.x = 0.12;
+      return;
+    }
     const moving = speed > 0.2;
     phase += dt * (moving ? 2.2 + speed * 0.9 : 0);
     const amp = moving ? Math.min(0.25 + speed * 0.07, 0.95) : 0;

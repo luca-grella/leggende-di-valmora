@@ -22,6 +22,8 @@ function add(parent, geo, mat, x = 0, y = 0, z = 0, sx = 1, sy = sx, sz = sx) {
 }
 
 const S = (r = 1, w = 18, h = 14) => new THREE.SphereGeometry(r, w, h);
+// `extra` is a single name or a list of them
+const has = (p, name) => p.extra === name || (Array.isArray(p.extra) && p.extra.includes(name));
 
 function eyes(head, p, y, z, spread, size = 0.13) {
   const white = m(0xffffff, { roughness: 0.2 });
@@ -122,7 +124,7 @@ const BUILD = {
     eyes(head, p, 0.05, 0.27, 0.15);
     ears(head, p, 0.22, 0.22);
     tail(g, p, 0, 0.45, -0.25);
-    if (p.extra === 'shell') add(g, S(0.42), m(0x8a6a45), 0, 0.68, -0.18, 1, 1.1, 0.6);
+    if (has(p, 'shell')) add(g, S(0.42), m(0x8a6a45), 0, 0.68, -0.18, 1, 1.1, 0.6);
     g.userData.head = head; g.userData.height = 1.6;
   },
   bird(g, p) {
@@ -147,11 +149,11 @@ const BUILD = {
     for (const [x, y, z, r] of puffs) add(g, new THREE.IcosahedronGeometry(r, 1), wool, x, y, z);
     legs(g, p, 4, 0.2, 0.25, 0.22, 0.18, 0.08);
     const head = new THREE.Group(); head.position.set(0, 0.82, 0.45); g.add(head);
-    add(head, S(0.28), m(p.extra === 'scarf' ? 0xffffff : 0x5d4b3c), 0, 0, 0, 1, 0.95, 0.9);
+    add(head, S(0.28), m(has(p, 'scarf') ? 0xffffff : 0x5d4b3c), 0, 0, 0, 1, 0.95, 0.9);
     eyes(head, p, 0.05, 0.2, 0.12, 0.1);
     ears(head, p, 0.12, 0.25);
     if (p.horns) for (const s of [-1, 1]) { const h = add(head, new THREE.TorusGeometry(0.12, 0.045, 6, 10, Math.PI * 1.4), m(p.horns), s * 0.24, 0.1, -0.05); h.rotation.y = s * Math.PI / 2; }
-    if (p.extra === 'scarf') add(g, new THREE.TorusGeometry(0.33, 0.08, 8, 18), m(0xe63946), 0, 0.72, 0.3).rotation.x = Math.PI / 2.4;
+    if (has(p, 'scarf')) add(g, new THREE.TorusGeometry(0.33, 0.08, 8, 18), m(0xe63946), 0, 0.72, 0.3).rotation.x = Math.PI / 2.4;
     g.userData.head = head; g.userData.height = 1.3;
   },
   bug(g, p) {
@@ -175,7 +177,7 @@ const BUILD = {
     add(g, S(0.3), m(p.belly), 0, 0.4, 0.28, 1, 0.8, 0.5);
     const head = new THREE.Group(); head.position.set(0, 0.62, 0.35); g.add(head);
     eyes(head, p, 0, 0.08, 0.17, 0.12);
-    if (p.extra === 'leafhat') for (let i = 0; i < 5; i++) { const l = add(g, S(0.2), m(i % 2 ? 0x3f7d34 : 0x5a9a41), 0, 0.98, 0, 0.5, 0.15, 1.3); l.rotation.y = (i / 5) * Math.PI; l.rotation.x = 0.3; }
+    if (has(p, 'leafhat')) for (let i = 0; i < 5; i++) { const l = add(g, S(0.2), m(i % 2 ? 0x3f7d34 : 0x5a9a41), 0, 0.98, 0, 0.5, 0.15, 1.3); l.rotation.y = (i / 5) * Math.PI; l.rotation.x = 0.3; }
     tail(g, p, 0, 0.35, -0.2);
     g.userData.head = head; g.userData.height = 1.1; g.userData.squash = true;
   },
@@ -252,16 +254,69 @@ const BUILD = {
 
 function extras(g, p) {
   const head = g.userData.head;
-  if (p.extra === 'sprout') {
+  if (has(p, 'sprout')) {
     add(g, new THREE.CylinderGeometry(0.03, 0.04, 0.3, 5), m(0x3f7d34), 0, 1.05, -0.1);
     for (const s of [-1, 1]) { const l = add(g, S(0.12), m(0x5cbf4a), s * 0.12, 1.22, -0.1, 1.3, 0.3, 0.7); l.rotation.z = s * 0.4; }
   }
-  if (p.extra === 'mane') for (let i = 0; i < 7; i++) {
+  if (has(p, 'mane')) for (let i = 0; i < 7; i++) {
     const a = (i / 7) * Math.PI * 2;
     add(head, new THREE.ConeGeometry(0.1, 0.32, 5), m(0xffb703, { emissive: 0xff7b00, emissiveIntensity: 0.6 }), Math.cos(a) * 0.3, Math.sin(a) * 0.3, -0.12).rotation.z = a - Math.PI / 2;
   }
-  if (p.extra === 'spikes') for (let i = 0; i < 4; i++) add(g, new THREE.ConeGeometry(0.08, 0.25, 5), m(0x9c6b2f), 0, 0.98, 0.25 - i * 0.2).rotation.x = -0.4;
+  if (has(p, 'spikes')) for (let i = 0; i < 4; i++) add(g, new THREE.ConeGeometry(0.08, 0.25, 5), m(0x9c6b2f), 0, 0.98, 0.25 - i * 0.2).rotation.x = -0.4;
   if (p.cheeks) for (const s of [-1, 1]) add(head, S(0.07), m(p.cheeks, { emissive: p.cheeks, emissiveIntensity: 0.4 }), s * 0.25, -0.08, 0.22, 1, 1, 0.5);
+
+  // Features of the evolved forms. They are placed from the bounding box of
+  // the body (top of the back) and on the head group, so they fit every shape.
+  const box = new THREE.Box3().setFromObject(g);
+  const top = box.max.y, back = Math.min(-0.05, (box.min.z + box.max.z) / 2 - 0.08);
+  const onHead = head && head !== g;
+  if (has(p, 'flower')) {
+    const f = new THREE.Group(); f.position.set(0, top - 0.04, back); g.add(f);
+    for (let i = 0; i < 5; i++) { const a = (i / 5) * Math.PI * 2; add(f, S(0.13), m(0xff8fb8), Math.cos(a) * 0.15, 0.05, Math.sin(a) * 0.15, 1, 0.45, 1); }
+    add(f, S(0.09), m(0xffd23f, { emissive: 0xffb300, emissiveIntensity: 0.3 }), 0, 0.1, 0);
+  }
+  if (has(p, 'tree')) {
+    add(g, new THREE.CylinderGeometry(0.06, 0.09, 0.45, 6), m(0x6b4a2f), 0, top + 0.15, back);
+    for (const [x, y, z, r] of [[0, 0.55, 0, 0.32], [0.2, 0.42, 0.08, 0.22], [-0.2, 0.44, -0.05, 0.24], [0.02, 0.75, -0.04, 0.2]]) add(g, new THREE.IcosahedronGeometry(r, 0), m(0x2f6e2b, { flatShading: true }), x, top + y, back + z);
+  }
+  if (has(p, 'horns')) {
+    const hm = m(p.horn ?? 0xf3e9d2);
+    const parent = onHead ? head : g, y = onHead ? 0.28 : top, z = onHead ? -0.02 : box.max.z - 0.2;
+    for (const s of [-1, 1]) { const h = add(parent, new THREE.ConeGeometry(0.07, 0.36, 7), hm, s * 0.16, y + 0.1, z); h.rotation.z = -s * 0.35; h.rotation.x = -0.35; }
+  }
+  if (has(p, 'crown') && onHead) {
+    const gold = m(p.crownColor ?? 0xffc93c, { emissive: p.crownColor ?? 0xffa000, emissiveIntensity: 0.25, roughness: 0.3, metalness: 0.6 });
+    const c = new THREE.Group(); c.position.set(0, 0.3, -0.02); head.add(c);
+    add(c, new THREE.CylinderGeometry(0.17, 0.19, 0.08, 10, 1, true), gold);
+    for (let i = 0; i < 5; i++) { const a = (i / 5) * Math.PI * 2; add(c, new THREE.ConeGeometry(0.045, 0.14, 4), gold, Math.cos(a) * 0.17, 0.09, Math.sin(a) * 0.17); }
+  }
+  if (has(p, 'acorn') && onHead) {
+    add(head, S(0.3, 14, 8), m(0x7a4a1e, { roughness: 1 }), 0, 0.14, -0.02, 1.05, 0.55, 1.05);
+    add(head, new THREE.CylinderGeometry(0.03, 0.04, 0.16, 5), m(0x4a2c10), 0, 0.36, -0.02);
+  }
+  if (has(p, 'tusks') && onHead) for (const s of [-1, 1]) add(head, new THREE.BoxGeometry(0.07, 0.12, 0.04), m(0xfff8e1), s * 0.04, -0.2, 0.3);
+  if (has(p, 'armor')) {
+    const rock = m(p.armor ?? 0x4b4440, { flatShading: true, roughness: 1 });
+    for (const s of [-1, 1]) { add(g, new THREE.DodecahedronGeometry(0.2, 0), rock, s * 0.38, top * 0.78, 0.05); add(g, new THREE.DodecahedronGeometry(0.16, 0), rock, s * 0.2, top * 0.86, back); }
+  }
+  if (has(p, 'flames')) {
+    const fm = m(0xff7b1c, { emissive: 0xff5a00, emissiveIntensity: 2.5 });
+    for (const s of [-1, 1]) add(g, new THREE.ConeGeometry(0.1, 0.34, 7), fm, s * 0.34, top * 0.82 + 0.12, back + 0.1);
+  }
+  if (has(p, 'fins')) { const f = add(g, new THREE.ConeGeometry(0.2, 0.5, 3), m(p.belly ?? p.body), 0, top - 0.02, back); f.scale.set(0.3, 1, 1); f.rotation.x = -0.4; }
+  if (has(p, 'plates')) for (let i = 0; i < 4; i++) {
+    const pl = add(g, new THREE.OctahedronGeometry(0.16, 0), m(p.accent ?? 0x8fe3ff, { emissive: p.accent ?? 0x8fe3ff, emissiveIntensity: 0.35, roughness: 0.2 }), 0, top - 0.06 - i * 0.04, box.max.z - 0.45 - i * 0.22);
+    pl.scale.set(0.45, 1.3, 1);
+  }
+  if (has(p, 'bolts')) for (let i = 0; i < 4; i++) {
+    const b = add(g, new THREE.ConeGeometry(0.07, 0.3, 4), m(0xfff176, { emissive: 0xffd000, emissiveIntensity: 1.2 }), 0, top - 0.02, box.max.z - 0.5 - i * 0.18);
+    b.rotation.x = -0.6;
+  }
+  if (has(p, 'icicles')) for (let i = 0; i < 5; i++) {
+    const a = (i / 4 - 0.5) * 1.6;
+    const ic = add(g, new THREE.ConeGeometry(0.06, 0.32, 5), m(0xcff4ff, { emissive: 0x9fe8ff, emissiveIntensity: 0.4, roughness: 0.1, transparent: true, opacity: 0.9 }), Math.sin(a) * 0.3, top - 0.03, back + Math.cos(a) * 0.1);
+    ic.rotation.z = -Math.sin(a) * 0.5;
+  }
 }
 
 export function buildCreature(speciesId) {
@@ -271,6 +326,7 @@ export function buildCreature(speciesId) {
   const g = new THREE.Group();
   root.add(g);
   (BUILD[p.shape] || BUILD.quad)(g, p);
+  if (p.hover) g.userData.hover = p.hover;
   extras(g, p);
   const scale = p.size * 1.7;
   root.scale.setScalar(scale);

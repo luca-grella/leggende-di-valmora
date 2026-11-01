@@ -238,6 +238,6 @@ export class Towns {
       const d = Math.hypot(pos.x - n.obj.position.x, pos.z - n.obj.position.z);
       if (d < 2.4 && d < bd) { best = { kind: n.prof ? 'prof' : 'npc', npc: n }; bd = d; }
     }
-    return best;
+    return best && { ...best, d: bd };
   }
 }

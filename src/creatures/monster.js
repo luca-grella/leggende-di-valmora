@@ -48,3 +48,26 @@ export function gainXp(m, amount) {
 export function heal(m) {
   m.hp = maxHp(m);
 }
+
+// The species this Velmon is ready to evolve into, or null.
+export function pendingEvolution(m) {
+  const e = SPECIES[m.species].evo;
+  return e && m.level >= e.level && m.hp > 0 ? e.to : null;
+}
+
+// Turns the Velmon into its evolved form: stats grow (the HP lost so far is
+// kept) and it learns the new species' moves up to its level that it lacks.
+export function evolve(m, to) {
+  const lost = maxHp(m) - m.hp;
+  m.species = to;
+  m.hp = Math.max(1, maxHp(m) - lost);
+  const learned = [];
+  for (const [l, mv] of SPECIES[to].learn) {
+    if (l <= m.level && !m.moves.includes(mv) && learned.length < 2) {
+      if (m.moves.length >= 4) m.moves.shift();
+      m.moves.push(mv);
+      learned.push(MOVES[mv].name);
+    }
+  }
+  return learned;
+}

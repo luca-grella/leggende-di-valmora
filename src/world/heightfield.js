@@ -89,6 +89,19 @@ for (const a of TOWNS) {
   }
 }
 
+// A point on a road at parameter t (0 = town a, 1 = town b), following the
+// same wobble that roadInfo uses, plus the road direction there.
+export function roadPoint({ a, b }, t) {
+  const vx = b.x - a.x, vz = b.z - a.z, L = Math.hypot(vx, vz);
+  const at = (u) => {
+    const wob = Math.sin(u * Math.PI * 3 + a.x * 0.001) * 60 * Math.sin(u * Math.PI);
+    return { x: a.x + vx * u + (-vz / L) * wob, z: a.z + vz * u + (vx / L) * wob };
+  };
+  const p = at(t), q = at(Math.min(t + 0.002, 1)), o = at(Math.max(t - 0.002, 0));
+  const dx = q.x - o.x, dz = q.z - o.z, d = Math.hypot(dx, dz);
+  return { x: p.x, z: p.z, dx: dx / d, dz: dz / d };
+}
+
 function roadInfo(x, z) {
   let best = Infinity, bestH = 0;
   for (const { a, b } of ROADS) {

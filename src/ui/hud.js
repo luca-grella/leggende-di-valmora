@@ -54,7 +54,8 @@ export class Hud {
     return [((x + WORLD_HALF) / (2 * WORLD_HALF)) * size, ((z + WORLD_HALF) / (2 * WORLD_HALF)) * size];
   }
 
-  drawMinimap(px, pz, yaw) {
+  // marks: [{ x, z, color, small, edge }] — edge marks stick to the rim when far away
+  drawMinimap(px, pz, yaw, marks = []) {
     const cv = $('minimap'), ctx = cv.getContext('2d');
     const W = cv.width, span = 900; // metres shown across
     const s = this.mapSize / (2 * WORLD_HALF);
@@ -69,6 +70,13 @@ export class Hud {
       ctx.fillStyle = '#fff'; ctx.strokeStyle = '#d0533c'; ctx.lineWidth = 3;
       ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     }
+    for (const m of marks) {
+      let x = ((m.x - px) / span) * W, y = ((m.z - pz) / span) * W;
+      const r = Math.hypot(x, y), max = W / 2 - 8;
+      if (r > max) { if (!m.edge) continue; x *= max / r; y *= max / r; }
+      ctx.fillStyle = m.color; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x + W / 2, y + W / 2, m.small ? 4 : 7, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    }
     ctx.translate(W / 2, W / 2);
     ctx.rotate(-yaw + Math.PI);
     ctx.fillStyle = '#e8573c'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
@@ -76,7 +84,7 @@ export class Hud {
     ctx.restore();
   }
 
-  showBigMap(px, pz) {
+  showBigMap(px, pz, marks = []) {
     const cv = $('bigmap-canvas'), ctx = cv.getContext('2d'), W = cv.width;
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(this.mapImg, 0, 0, W, W);
@@ -90,6 +98,11 @@ export class Hud {
       ctx.font = '600 12px system-ui';
       ctx.strokeText(t.region.name, x, y + 24); ctx.fillStyle = '#ffe08a'; ctx.fillText(t.region.name, x, y + 24);
       ctx.font = '700 15px system-ui';
+    }
+    for (const m of marks) {
+      const [mx, my] = this.toMap(m.x, m.z, W);
+      ctx.fillStyle = m.color; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(mx, my, m.small ? 4 : 7, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     }
     const [x, y] = this.toMap(px, pz, W);
     ctx.fillStyle = '#e8573c'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 3;
@@ -118,6 +131,34 @@ export class Hud {
     t.textContent = text; t.hidden = false;
     clearTimeout(this.toastT);
     this.toastT = setTimeout(() => (t.hidden = true), ms);
+  }
+
+  setMoney(n) {
+    $('money').textContent = `💰 ${n.toLocaleString('it-IT')}`;
+  }
+
+  setWanted(n, fading = false) {
+    const el = $('wanted');
+    const txt = '★'.repeat(n) + '☆'.repeat(3 - n);
+    if (el.textContent !== txt) el.textContent = txt;
+    el.hidden = !n;
+    el.classList.toggle('fading', fading);
+    $('siren').hidden = !n;
+  }
+
+  // the current job: { title, goal, timer, urgent, dist } or null
+  mission(m) {
+    $('mission').hidden = !m;
+    if (!m) return;
+    $('mission-title').textContent = m.title;
+    $('mission-goal').textContent = m.dist != null ? `${m.goal} · ${m.dist} m` : m.goal;
+    const t = $('mission-timer');
+    t.textContent = m.timer;
+    t.classList.toggle('urgent', !!m.urgent);
+  }
+
+  showFire(on) {
+    $('btn-fire').hidden = !on;
   }
 
   hint(text) {
@@ -216,7 +257,12 @@ export class Hud {
       });
       el.appendChild(b);
     });
-    $('menu-foot').innerHTML = `Sfere: <b>${game.state.balls}</b> · Velmon nel Box: <b>${game.state.box.length}</b> · Diario: <b>${Object.keys(game.state.seen).length}</b> visti, <b>${Object.keys(game.state.caught).length}</b> catturati<br>Tocca un Velmon per metterlo in testa alla squadra.`;
+    const st = game.state, total = Object.keys(SPECIES).length;
+    const champs = Object.keys(st.beaten).filter((k) => k.startsWith('town-')).length;
+    $('menu-foot').innerHTML = `💰 Monete: <b>${st.money.toLocaleString('it-IT')}</b> · Sfere: <b>${st.balls}</b> · Box: <b>${st.box.length}</b><br>`
+      + `Diario: <b>${Object.keys(st.seen).length}</b> visti, <b>${Object.keys(st.caught).length}</b> catturati su <b>${total}</b><br>`
+      + `Allenatori battuti: <b>${Object.keys(st.beaten).length}</b> (campioni <b>${champs}</b>/9) · Lavoretti loschi: <b>${st.crimes || 0}</b>${st.blaster ? ' · 🎯 Spara-vernice' : ''}<br>`
+      + 'Tocca un Velmon per metterlo in testa alla squadra.';
     $('menu').hidden = false;
     this.modal = true;
   }

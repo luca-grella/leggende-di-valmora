@@ -8,6 +8,8 @@ import { SkySystem } from './world/sky.js';
 import { Water } from './world/water.js';
 import { ChunkManager } from './world/terrain.js';
 import { Towns } from './world/towns.js';
+import { Trainers } from './world/trainers.js';
+import { Crime } from './world/crime.js';
 import { TOWNS } from './world/heightfield.js';
 import { regionAt } from './world/regions.js';
 import { windUniforms } from './world/vegetation.js';
@@ -43,9 +45,11 @@ class Game {
     this.player = new Player(this.scene, this.camera);
     this.hud = new Hud();
     this.battle = new Battle(this);
+    this.trainers = new Trainers(this.scene);
+    this.crime = new Crime(this);
     this.input = new Input(canvas, {
       joyBase: $('joy-base'), joyKnob: $('joy-knob'), btnA: $('btn-a'), btnMenu: $('btn-menu'),
-      btnMap: $('btn-map'), btnJump: $('btn-jump'), btnRun: $('btn-run'),
+      btnMap: $('btn-map'), btnJump: $('btn-jump'), btnRun: $('btn-run'), btnFire: $('btn-fire'),
     });
 
     this.state = this.load();
@@ -63,13 +67,14 @@ class Game {
 
   newState() {
     const start = TOWNS.find((t) => t.region.start);
-    return { v: 1, pos: { x: start.x + 2, z: start.z + 14, facing: Math.PI }, time: 9.5, party: [], box: [], balls: 0, seen: {}, caught: {}, cura: start.region.id, started: false };
+    return { v: 1, pos: { x: start.x + 2, z: start.z + 14, facing: Math.PI }, time: 9.5, party: [], box: [], balls: 0, seen: {}, caught: {}, cura: start.region.id, started: false, money: 300, beaten: {}, blaster: false, crimes: 0 };
   }
 
   load() {
     try {
       const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
-      if (s && s.v === 1) return s;
+      // saves from before money and trainers get the new fields
+      if (s && s.v === 1) return { money: 300, beaten: {}, blaster: false, crimes: 0, ...s };
     } catch { /* private mode or corrupted save: start fresh */ }
     return this.newState();
   }
@@ -109,6 +114,8 @@ class Game {
     setTimeout(() => ($('loading').hidden = true), 600);
     this.hudVisible(true);
     this.hud.teamStrip(this.state.party);
+    this.hud.setMoney(this.state.money);
+    this.hud.showFire(this.state.blaster);
     this.renderer.setAnimationLoop((ts) => this.frame(ts));
     if (!this.state.started) this.intro();
     else this.hud.toast('Bentornato a Valmora!');
@@ -172,10 +179,15 @@ class Game {
     let id = entries[0][0];
     for (const [k, w] of entries) { x -= w; if (x <= 0) { id = k; break; } }
     const [lo, hi] = r.levels;
-    return createMonster(id, lo + Math.floor(Math.random() * (hi - lo + 1)));
+    const level = lo + Math.floor(Math.random() * (hi - lo + 1));
+    // past their evolution level, wild Velmon are sometimes already evolved
+    const evo = SPECIES[id].evo;
+    if (evo && level >= evo.level && Math.random() < 0.4) id = evo.to;
+    return createMonster(id, level);
   }
 
   async afterBattle(outcome) {
+    this.hud.setMoney(this.state.money);
     this.cooldown = 4;
     this.grassMeters = 0;
     if (outcome === 'lose') {
@@ -191,6 +203,9 @@ class Game {
   }
 
   async interact(it) {
+    if (it.kind === 'trainer') return this.trainers.talk(it.tr, this);
+    if (['fixer', 'scooter', 'stall'].includes(it.kind)) return this.crime.interact(it);
+    if (it.kind === 'dismount') { this.player.dismount(); return; }
     this.busy = true;
     if (it.kind === 'cura') {
       this.state.cura = it.town.region.id;
@@ -226,6 +241,8 @@ class Game {
 
     this.hud.update(input);
     if (this.battle.active) this.battle.update(input);
+    this.trainers.update(dt, this);
+    this.crime.update(dt);
 
     const frozen = this.busy || this.hud.modal || this.battle.active;
     if (!this.battle.active) {
@@ -235,10 +252,11 @@ class Game {
 
     if (!frozen) {
       if (input.pressed('menu')) this.hud.showMenu(this);
-      else if (input.pressed('map')) this.hud.showBigMap(this.player.pos.x, this.player.pos.z);
+      else if (input.pressed('map')) this.hud.showBigMap(this.player.pos.x, this.player.pos.z, this.crime.mapMarks());
       else if (input.pressed('run')) input.runToggle = !input.runToggle;
-      const it = this.towns.nearestInteraction(this.player.pos);
-      this.hud.hint(it ? { cura: 'A · Entra nel Centro Cura', npc: 'A · Parla', prof: 'A · Parla con la Professoressa' }[it.kind] : '');
+      if (input.pressed('fire')) this.crime.fire();
+      const it = this.nearestInteraction();
+      this.hud.hint(it ? it.hint || { cura: 'A · Entra nel Centro Cura', npc: 'A · Parla', prof: 'A · Parla con la Professoressa', dismount: 'A · Scendi dallo scooter' }[it.kind] : '');
       if (it && input.pressed('a')) this.interact(it);
       this.checkEncounter(dt);
     } else this.hud.hint('');
@@ -258,7 +276,7 @@ class Game {
     if (this.mapT <= 0) {
       this.mapT = 0.12;
       this.hud.setPlace(r.name, this.sky.clockText);
-      this.hud.drawMinimap(center.x, center.z, this.player.facing);
+      this.hud.drawMinimap(center.x, center.z, this.player.facing, this.crime.mapMarks());
     }
     this.saveT += dt;
     if (this.saveT > 5 && !this.battle.active) { this.saveT = 0; this.save(); }
@@ -267,9 +285,20 @@ class Game {
     input.endFrame();
   }
 
+  // the closest thing to talk to or use; on the scooter A always gets off
+  nearestInteraction() {
+    if (this.player.vehicle) return { kind: 'dismount' };
+    const P = this.player.pos;
+    const all = [this.towns.nearestInteraction(P), this.trainers.nearest(P), this.crime.nearest(P)].filter(Boolean);
+    all.sort((a, b) => a.d - b.d);
+    const it = all[0];
+    if (it?.kind === 'trainer') it.hint = `A · Parla con ${it.tr.name}`;
+    return it || null;
+  }
+
   checkEncounter(dt) {
     this.cooldown -= dt;
-    if (this.cooldown > 0 || !this.state.started || this.player.moved < 0.01) return;
+    if (this.cooldown > 0 || !this.state.started || this.player.moved < 0.01 || this.player.vehicle || this.crime.wanted) return;
     if (!this.chunks.isTallGrass(this.player.pos.x, this.player.pos.z)) return;
     if (!this.state.party.some((m) => m.hp > 0)) { if (Math.random() < 0.005) this.hud.toast('La tua squadra è esausta: vai al Centro Cura!'); return; }
     this.grassMeters += this.player.moved;

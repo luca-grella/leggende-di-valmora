@@ -13,7 +13,7 @@ export class Input {
     this.pinch = null;
     this.enabled = true;
 
-    const map = { KeyE: 'a', Enter: 'a', Space: 'jump', Escape: 'b', Backspace: 'b', KeyM: 'map', KeyP: 'menu', Tab: 'menu', KeyR: 'run' };
+    const map = { KeyE: 'a', Enter: 'a', Space: 'jump', Escape: 'b', Backspace: 'b', KeyM: 'map', KeyP: 'menu', Tab: 'menu', KeyR: 'run', KeyF: 'fire' };
     addEventListener('keydown', (e) => {
       if (e.repeat) return;
       this.keys.add(e.code);
@@ -88,6 +88,7 @@ export class Input {
     bind(touchUI.btnMenu, 'menu');
     bind(touchUI.btnMap, 'map');
     bind(touchUI.btnJump, 'jump');
+    bind(touchUI.btnFire, 'fire');
     if (touchUI.btnRun) touchUI.btnRun.addEventListener('pointerdown', (e) => {
       this.runToggle = !this.runToggle;
       touchUI.btnRun.classList.toggle('on', this.runToggle);

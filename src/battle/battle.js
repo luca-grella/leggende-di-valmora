@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { heightAt } from '../world/heightfield.js';
 import { SPECIES, MOVES, effectiveness, TYPE_COLORS } from '../creatures/species.js';
 import { buildCreature } from '../creatures/model.js';
-import { nameOf, stats, maxHp, gainXp, xpForLevel } from '../creatures/monster.js';
+import { nameOf, stats, maxHp, gainXp, xpForLevel, pendingEvolution, evolve } from '../creatures/monster.js';
 import { hpColor, typeBadges } from '../ui/hud.js';
 
 const $ = (id) => document.getElementById(id);
@@ -54,7 +54,9 @@ export class Battle {
     const el = document.querySelector(`#battle-ui .${which}`);
     const sp = SPECIES[mon.species], f = mon.hp / maxHp(mon);
     el.querySelector('.name').textContent = nameOf(mon);
-    el.querySelector('.lv').textContent = `Lv ${mon.level}`;
+    // a trainer's remaining team is shown as dots next to the level
+    const pips = which === 'foe' && this.trainer ? `  ${this.foeTeam.map((m) => (m.hp > 0 ? '●' : '○')).join('')}` : '';
+    el.querySelector('.lv').textContent = `Lv ${mon.level}${pips}`;
     el.querySelector('.types').innerHTML = typeBadges(sp.types);
     const bar = el.querySelector('.hp i');
     bar.style.width = `${f * 100}%`;
@@ -70,6 +72,8 @@ export class Battle {
     $('battle-msg').hidden = true;
     $('battle-actions').hidden = false;
     $('ball-count').textContent = `×${this.game.state.balls}`;
+    // no catching or running away against a trainer
+    for (const b of $('battle-actions').querySelectorAll('[data-act="catch"], [data-act="run"]')) b.classList.toggle('off', !!this.trainer);
     return new Promise((res) => (this.pick = (a) => { this.pick = null; res(a); }));
   }
 
@@ -144,6 +148,29 @@ export class Battle {
     this.ring.rotation.x = -Math.PI / 2;
     this.ring.position.copy(foePos).y += 0.08;
     scene.add(this.ring);
+    // the opposing trainer stands behind their Velmon
+    const obj = this.trainer?.obj;
+    if (obj) {
+      const tp = foePos.clone().addScaledVector(this.fwd, 3.2).addScaledVector(this.right, 2.2);
+      obj.position.set(tp.x, heightAt(tp.x, tp.z), tp.z);
+      obj.lookAt(P.x, obj.position.y, P.z);
+    }
+  }
+
+  // a trainer's next Velmon enters the field
+  sendFoe(mon) {
+    this.game.scene.remove(this.foeModel);
+    this.foe = mon;
+    this.game.state.seen[mon.species] = true;
+    this.foeModel = buildCreature(mon.species);
+    this.foeModel.scale.multiplyScalar(1.5);
+    const s = this.foeModel.scale.x;
+    this.foeModel.position.copy(this.foePos);
+    this.foeModel.lookAt(this.allyPos.x, this.foePos.y, this.allyPos.z);
+    this.foeModel.scale.setScalar(0.01);
+    this.game.scene.add(this.foeModel);
+    this.anim(350, (t) => this.foeModel.scale.setScalar(s * ease(t)));
+    this.card('foe', mon);
   }
 
   sendOut(mon) {
@@ -222,7 +249,8 @@ export class Battle {
   }
 
   async attack(attacker, defender, moveId, attModel, defModel, defSide) {
-    await this.msg(`${defSide === 'foe' ? '' : 'Il selvatico '}${nameOf(attacker)} usa ${MOVES[moveId].name}!`, 900);
+    const who = defSide === 'foe' ? nameOf(attacker) : this.trainer ? `${nameOf(attacker)} avversario` : `Il selvatico ${nameOf(attacker)}`;
+    await this.msg(`${who} usa ${MOVES[moveId].name}!`, 900);
     await this.lunge(attModel, defModel.position);
     const r = this.damage(attacker, defender, moveId);
     if (r.miss) { await this.msg('Ma manca il bersaglio!', 1000); return; }
@@ -283,11 +311,15 @@ export class Battle {
   }
 
   // ---------- main flow ----------
-  async start(foe) {
-    const game = this.game;
+  // foe: a wild Velmon, or null with opts.trainer = { name, team, reward, fine, obj }
+  // (reward is paid on a win, fine is lost on a defeat). Resolves with the outcome.
+  async start(foe, opts = {}) {
+    const game = this.game, st = game.state;
     this.active = true;
-    this.foe = foe;
-    game.state.seen[foe.species] = true;
+    const tr = this.trainer = opts.trainer || null;
+    this.foeTeam = tr ? tr.team : [foe];
+    foe = this.foe = this.foeTeam[0];
+    st.seen[foe.species] = true;
     $('flash').classList.remove('on'); void $('flash').offsetWidth; $('flash').classList.add('on');
     await wait(700);
     this.stage();
@@ -295,7 +327,10 @@ export class Battle {
     document.querySelector('#battle-ui .foe').hidden = false;
     this.card('foe', foe);
     game.hudVisible(false);
-    await this.msg(`Un ${SPECIES[foe.species].name} selvatico (Lv ${foe.level}) ti sbarra la strada!`, 1700);
+    if (tr) {
+      await this.msg(`${tr.name} ti sfida!`, 1400);
+      await this.msg(`${tr.name} manda in campo ${SPECIES[foe.species].name} (Lv ${foe.level})!`, 1400);
+    } else await this.msg(`Un ${SPECIES[foe.species].name} selvatico (Lv ${foe.level}) ti sbarra la strada!`, 1700);
     this.sendOut(this.firstUsable());
     await this.msg(`Vai, ${nameOf(this.ally)}!`, 900);
 
@@ -314,6 +349,7 @@ export class Battle {
           else await this.attack(foe, this.ally, this.foeMove(), this.foeModel, this.allyModel, 'ally');
         }
       } else if (act === 'catch') {
+        if (tr) { await this.msg('Non puoi catturare il Velmon di un altro allenatore!', 1400); continue; }
         const res = await this.tryCatch();
         if (res === true) { outcome = 'caught'; break; }
         if (res === false) await this.attack(foe, this.ally, this.foeMove(), this.foeModel, this.allyModel, 'ally');
@@ -322,10 +358,11 @@ export class Battle {
         this.cancel = null;
         if (i < 0) continue;
         await this.msg(`Torna, ${nameOf(this.ally)}!`, 700);
-        this.sendOut(game.state.party[i]);
+        this.sendOut(st.party[i]);
         await this.msg(`Vai, ${nameOf(this.ally)}!`, 800);
         await this.attack(foe, this.ally, this.foeMove(), this.foeModel, this.allyModel, 'ally');
       } else if (act === 'run') {
+        if (tr) { await this.msg('Non si scappa da una sfida!', 1200); continue; }
         const ok = stats(this.ally).spd >= stats(foe).spd || Math.random() < 0.7;
         if (ok) { await this.msg('Sei scappato senza problemi!', 1100); outcome = 'run'; break; }
         await this.msg('Non riesci a scappare!', 1000);
@@ -334,8 +371,9 @@ export class Battle {
 
       if (foe.hp <= 0) {
         await this.faintAnim(this.foeModel);
-        await this.msg(`Il ${SPECIES[foe.species].name} selvatico è esausto!`, 1200);
-        const xp = Math.floor((SPECIES[foe.species].xp * foe.level) / 7);
+        this.card('foe', foe);
+        await this.msg(tr ? `${SPECIES[foe.species].name} avversario è esausto!` : `Il ${SPECIES[foe.species].name} selvatico è esausto!`, 1200);
+        const xp = Math.floor(((SPECIES[foe.species].xp * foe.level) / 7) * (tr ? 1.5 : 1));
         const events = gainXp(this.ally, xp);
         this.card('ally', this.ally);
         await this.msg(`${nameOf(this.ally)} guadagna ${xp} Punti Esperienza!`, 1300);
@@ -343,25 +381,82 @@ export class Battle {
           if (e.kind === 'level') { this.card('ally', this.ally); await this.msg(`${nameOf(this.ally)} sale al livello ${e.level}!`, 1400); }
           if (e.kind === 'move') await this.msg(`${nameOf(this.ally)} impara ${e.move}!`, 1400);
         }
-        outcome = 'win';
+        const next = tr && this.foeTeam.find((m) => m.hp > 0);
+        if (next) {
+          await this.msg(`${tr.name} manda in campo ${SPECIES[next.species].name} (Lv ${next.level})!`, 1300);
+          this.sendFoe(next);
+          foe = next;
+        } else {
+          if (tr) {
+            await this.msg(`Hai sconfitto ${tr.name}!`, 1400);
+            if (tr.reward) { st.money += tr.reward; await this.msg(`Ricevi 💰 ${tr.reward} monete!`, 1400); }
+          }
+          outcome = 'win';
+        }
       } else if (this.ally.hp <= 0) {
         await this.faintAnim(this.allyModel);
         await this.msg(`${nameOf(this.ally)} è esausto!`, 1200);
         if (!this.firstUsable()) {
           await this.msg('Non hai più Velmon in grado di lottare...', 1500);
+          const fine = Math.min(st.money, tr?.fine ?? 0);
+          if (fine > 0) { st.money -= fine; await this.msg(`Perdi 💰 ${fine} monete...`, 1400); }
           await this.msg('Corri al Centro Cura più vicino!', 1300);
           outcome = 'lose';
         } else {
           const i = await this.chooseTeam(true);
-          this.sendOut(game.state.party[i]);
+          this.sendOut(st.party[i]);
           await this.msg(`Vai, ${nameOf(this.ally)}!`, 800);
         }
       }
     }
-    this.end(outcome);
+    if (outcome === 'win') await this.evolutions();
+    return this.end(outcome);
   }
 
-  end(outcome) {
+  // After a won battle every Velmon that reached its level evolves, on stage.
+  async evolutions() {
+    const st = this.game.state;
+    for (const m of st.party) {
+      const to = pendingEvolution(m);
+      if (!to) continue;
+      document.querySelector('#battle-ui .foe').hidden = true;
+      if (this.foeModel) this.foeModel.visible = false;
+      const before = nameOf(m);
+      if (this.ally !== m || !this.allyModel?.visible) this.sendOut(m);
+      await wait(400);
+      await this.msg(`Cosa? ${before} si sta evolvendo!`, 1600);
+      const oldModel = this.allyModel, newModel = buildCreature(to);
+      newModel.position.copy(oldModel.position);
+      newModel.rotation.copy(oldModel.rotation);
+      newModel.visible = false;
+      this.game.scene.add(newModel);
+      const h = Math.max(oldModel.userData.height, newModel.userData.height);
+      const orb = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false }));
+      orb.position.copy(oldModel.position).y += h * 0.5;
+      orb.scale.setScalar(h * 0.75);
+      this.game.scene.add(orb);
+      // glow, then the two shapes alternate faster and faster
+      await this.anim(600, (t) => (orb.material.opacity = t * 0.6));
+      await this.anim(2200, (t) => {
+        const on = Math.sin(t * t * 60) > 0;
+        oldModel.visible = !on; newModel.visible = on;
+        orb.scale.setScalar(h * (0.75 + Math.sin(t * 30) * 0.05));
+      });
+      oldModel.visible = false; newModel.visible = true;
+      this.game.scene.remove(oldModel);
+      this.allyModel = newModel;
+      await this.anim(500, (t) => { orb.material.opacity = 0.6 * (1 - t); orb.scale.setScalar(h * (0.75 + t)); });
+      this.game.scene.remove(orb);
+      orb.geometry.dispose(); orb.material.dispose();
+      const learned = evolve(m, to);
+      st.seen[to] = true; st.caught[to] = true;
+      this.card('ally', m);
+      await this.msg(`Congratulazioni! ${before} si è evoluto in ${SPECIES[to].name}!`, 2200);
+      for (const mv of learned) await this.msg(`${nameOf(m)} impara ${mv}!`, 1400);
+    }
+  }
+
+  async end(outcome) {
     const game = this.game;
     for (const o of [this.foeModel, this.allyModel, this.ring]) if (o) game.scene.remove(o);
     this.allyModel = null;
@@ -369,7 +464,10 @@ export class Battle {
     $('battle-ui').hidden = true;
     this.active = false;
     game.hudVisible(true);
-    game.afterBattle(outcome);
+    const trainer = this.trainer;
+    this.trainer = null;
+    await game.afterBattle(outcome, trainer);
+    return outcome;
   }
 
   // camera framing while the battle runs
