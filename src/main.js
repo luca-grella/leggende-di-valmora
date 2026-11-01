@@ -3,6 +3,10 @@
 
 import * as THREE from 'three';
 import { QUALITY, IS_MOBILE } from './core/quality.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { Input } from './core/input.js';
 import { SkySystem } from './world/sky.js';
 import { Water } from './world/water.js';
@@ -42,6 +46,16 @@ class Game {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(IS_MOBILE ? 62 : 55, innerWidth / innerHeight, 0.1, 9500);
 
+    // Desktop: ambient occlusion darkens creases and contact points (too heavy for phones)
+    if (!IS_MOBILE) {
+      this.composer = new EffectComposer(this.renderer);
+      this.composer.addPass(new RenderPass(this.scene, this.camera));
+      const ao = new GTAOPass(this.scene, this.camera, innerWidth, innerHeight);
+      ao.updateGtaoMaterial({ radius: 1.2, distanceExponent: 1.5, thickness: 1, scale: 1.1 });
+      ao.blendIntensity = 0.85;
+      this.composer.addPass(ao);
+      this.composer.addPass(new OutputPass());
+    }
     this.sky = new SkySystem(this.scene, QUALITY);
     this.water = new Water(this.scene, QUALITY.viewDistance + 200);
     this.chunks = new ChunkManager(this.scene, QUALITY);
@@ -100,6 +114,7 @@ class Game {
     this.camera.aspect = innerWidth / innerHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(innerWidth, innerHeight);
+    this.composer?.setSize(innerWidth, innerHeight);
   }
 
   async boot() {
@@ -330,7 +345,7 @@ class Game {
     this.saveT += dt;
     if (this.saveT > 5 && !this.battle.active) { this.saveT = 0; this.save(); }
 
-    this.renderer.render(this.scene, this.camera);
+    if (this.composer) this.composer.render(); else this.renderer.render(this.scene, this.camera);
     input.endFrame();
   }
 
