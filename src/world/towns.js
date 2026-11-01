@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { mulberry32 } from '../core/noise.js';
 import { TOWNS } from './heightfield.js';
 import { makeCharacter } from './character.js';
+import { tex } from './textures.js';
 
 const windowMat = new THREE.MeshStandardMaterial({ color: 0x9cc3d9, emissive: 0xffc46b, emissiveIntensity: 0, roughness: 0.3 });
 const lampMat = new THREE.MeshStandardMaterial({ color: 0xfff1c9, emissive: 0xffd28a, emissiveIntensity: 0 });
@@ -35,6 +36,17 @@ const tiles = canvasTex((ctx, n) => {
     ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x + n / 12, y + n / rows * 0.6, n / 13, n / rows * 0.6, 0, 0, Math.PI * 2); ctx.fill();
   }
 }, 256, 0.35);
+// photographic plaster and clay tiles, tinted with each town's colours
+const wallMat = (hex) => {
+  const k = `wall-${hex}`;
+  if (!matCache.has(k)) matCache.set(k, new THREE.MeshStandardMaterial({ color: new THREE.Color(hex).lerp(new THREE.Color(0xffffff), 0.5).multiplyScalar(2.1), map: tex('clay_plaster_diff', { repeat: 2 }), normalMap: tex('clay_plaster_nor_gl', { color: false, repeat: 2 }), roughness: 0.95 }));
+  return matCache.get(k);
+};
+const roofMat = (hex) => {
+  const k = `roof-${hex}`;
+  if (!matCache.has(k)) matCache.set(k, new THREE.MeshStandardMaterial({ color: new THREE.Color(hex).lerp(new THREE.Color(0xffffff), 0.5).multiplyScalar(1.5), map: tex('clay_roof_tiles_diff', { repeat: 0.4 }), normalMap: tex('clay_roof_tiles_nor_gl', { color: false, repeat: 0.4 }), roughness: 0.8 }));
+  return matCache.get(k);
+};
 const matCache = new Map();
 const mat = (hex, rough = 0.85, map = null) => {
   const k = `${hex}-${rough}-${map ? map.id : ''}`;
@@ -64,9 +76,9 @@ function gableRoof(w, d, h) {
 function house({ w, d, h, wall, roof, floors = 1 }) {
   const g = new THREE.Group();
   const H = h * floors;
-  g.add(mesh(new THREE.BoxGeometry(w, H, d), mat(wall, 0.9, plaster), 0, H / 2, 0));
+  g.add(mesh(new THREE.BoxGeometry(w, H, d), wallMat(wall), 0, H / 2, 0));
   g.add(mesh(new THREE.BoxGeometry(w + 0.2, 0.35, d + 0.2), mat(0x8a8178), 0, 0.17, 0)); // plinth
-  g.add(mesh(gableRoof(w, d, Math.min(w, d) * 0.45), mat(roof, 0.7, tiles), 0, H, 0));
+  g.add(mesh(gableRoof(w, d, Math.min(w, d) * 0.45), roofMat(roof), 0, H, 0));
   g.add(mesh(new THREE.BoxGeometry(1.1, 2.0, 0.12), mat(0x6b4a2f), 0, 1.0, d / 2 + 0.03)); // door
   const winGeo = new THREE.BoxGeometry(0.9, 0.9, 0.1);
   for (let f = 0; f < floors; f++) {

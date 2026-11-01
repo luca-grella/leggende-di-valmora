@@ -7,12 +7,50 @@ import { mulberry32, hash2 } from '../core/noise.js';
 import { heightAt, groundColor, tallGrassAt, isRoad, townAt, biomeAt, SEA_LEVEL } from './heightfield.js';
 import { regionAt } from './regions.js';
 import { treeAssets, rockAssets, flowerAssets, grassAssets } from './vegetation.js';
+import { TOWNS } from './heightfield.js';
+import { tex } from './textures.js';
 
 export const CHUNK = 64;
 
 const KIND = { GRASS: 0, TALL: 1, PATH: 2, SHORE: 3, ROCK: 4 };
 
 const terrainMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.93, metalness: 0 });
+// Photographic detail on top of the biome colours: the vertex colour keeps the
+// hue of each region, the photos add the grain (two scales to hide tiling).
+// Rock on steep slopes, sand by the sea, cobblestones on the town squares.
+terrainMat.onBeforeCompile = (sh) => {
+  sh.uniforms.tGrass = { value: tex('aerial_grass_rock_diff') };
+  sh.uniforms.tRock = { value: tex('aerial_rocks_02_diff') };
+  sh.uniforms.tSand = { value: tex('coast_sand_01_diff') };
+  sh.uniforms.tCobble = { value: tex('cobblestone_floor_01_diff') };
+  sh.uniforms.uTowns = { value: TOWNS.map((t) => new THREE.Vector3(t.x, t.z, t.radius * 0.5)) };
+  sh.vertexShader = sh.vertexShader
+    .replace('#include <common>', '#include <common>\nvarying vec3 vWPos; varying vec3 vWN;')
+    .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWPos = (modelMatrix * vec4(transformed, 1.0)).xyz; vWN = normalize(mat3(modelMatrix) * objectNormal);');
+  sh.fragmentShader = sh.fragmentShader
+    .replace('#include <common>', `#include <common>
+varying vec3 vWPos; varying vec3 vWN;
+uniform sampler2D tGrass, tRock, tSand, tCobble;
+uniform vec3 uTowns[${TOWNS.length}];
+float lum(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }`)
+    .replace('#include <color_fragment>', `#include <color_fragment>
+{
+  vec2 p = vWPos.xz;
+  float g = lum(texture2D(tGrass, p / 7.0).rgb) * 0.6 + lum(texture2D(tGrass, p / 41.0).rgb) * 0.4;
+  float slope = 1.0 - clamp(vWN.y, 0.0, 1.0);
+  vec2 rp = abs(vWN.x) > abs(vWN.z) ? vWPos.zy : vWPos.xy; // rock seen from the side on cliffs
+  float r = lum(texture2D(tRock, mix(p, rp, smoothstep(0.5, 0.8, slope)) / 9.0).rgb);
+  float s = lum(texture2D(tSand, p / 6.0).rgb);
+  float d = mix(g / 0.36, r / 0.42, smoothstep(0.38, 0.7, slope));
+  d = mix(d, s / 0.55, 1.0 - smoothstep(0.8, 2.0, vWPos.y));
+  diffuseColor.rgb *= clamp(d, 0.55, 1.5);
+  for (int i = 0; i < ${TOWNS.length}; i++) {
+    float k = 1.0 - smoothstep(uTowns[i].z * 0.85, uTowns[i].z, distance(p, uTowns[i].xy));
+    if (k > 0.0) diffuseColor.rgb = mix(diffuseColor.rgb, texture2D(tCobble, p / 3.0).rgb * 0.95, k * 0.9);
+  }
+}`);
+};
+terrainMat.customProgramCacheKey = () => 'terrain-photo';
 const indexCache = {};
 const tmpColor = new THREE.Color();
 const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s3 = new THREE.Vector3(), p3 = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
