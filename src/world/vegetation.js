@@ -4,6 +4,7 @@
 
 import * as THREE from 'three';
 import { photoDetail } from './textures.js';
+import { IS_MOBILE } from '../core/quality.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { mulberry32 } from '../core/noise.js';
 
@@ -60,7 +61,8 @@ function colored(geo, hex, jitter = 0, seed = 1) {
 }
 
 function blob(r, detail, x, y, z, sx = 1, sy = 1, sz = 1, seed = 1) {
-  const g = new THREE.IcosahedronGeometry(r, detail);
+  // rounder, lumpier canopies on desktop; phones keep the light version
+  const g = new THREE.IcosahedronGeometry(r, detail + (detail > 0 && !IS_MOBILE ? 1 : 0));
   const p = g.attributes.position;
   const rnd = mulberry32(seed);
   const cache = new Map();
@@ -87,6 +89,10 @@ const TREE_BUILDERS = {
     parts.push(colored(blob(1.6, 1, 1.2, 5.0, 0.4, 1, 0.9, 1, 4), greens[1], 0.25, 4));
     parts.push(colored(blob(1.5, 1, -1.0, 5.2, -0.6, 1, 0.9, 1, 5), greens[2], 0.25, 5));
     parts.push(colored(blob(1.3, 1, 0.2, 6.2, 0.1, 1, 0.9, 1, 6), greens[1], 0.25, 6));
+    // a few smaller clumps so the crown is not a single ball
+    parts.push(colored(blob(1.0, 1, -1.6, 4.4, 0.9, 1, 0.85, 1, 8), greens[2], 0.25, 8));
+    parts.push(colored(blob(0.9, 1, 1.7, 4.1, -0.9, 1, 0.85, 1, 9), greens[0], 0.25, 9));
+    parts.push(colored(blob(0.8, 1, 0.4, 3.6, 1.7, 1, 0.8, 1, 10), greens[1], 0.25, 10));
     return mergeGeometries(parts);
   },
   pine: () => {
@@ -162,7 +168,7 @@ const treeGeos = {};
 let treeMat;
 export function treeAssets(type) {
   if (!treeGeos[type]) treeGeos[type] = TREE_BUILDERS[type]();
-  if (!treeMat) treeMat = photoDetail(addWind(new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.85 }), 0.012, 1.4), 'tree');
+  if (!treeMat) treeMat = photoDetail(addWind(new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: false, roughness: 0.85 }), 0.012, 1.4), 'tree');
   return { geometry: treeGeos[type], material: treeMat };
 }
 

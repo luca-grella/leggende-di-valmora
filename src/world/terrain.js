@@ -36,14 +36,14 @@ float lum(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }`)
     .replace('#include <color_fragment>', `#include <color_fragment>
 {
   vec2 p = vWPos.xz;
-  float g = lum(texture2D(tGrass, p / 7.0).rgb) * 0.6 + lum(texture2D(tGrass, p / 41.0).rgb) * 0.4;
+  float g = lum(texture2D(tGrass, p / 4.0).rgb) * 0.5 + lum(texture2D(tGrass, p / 23.0).rgb) * 0.5;
   float slope = 1.0 - clamp(vWN.y, 0.0, 1.0);
   vec2 rp = abs(vWN.x) > abs(vWN.z) ? vWPos.zy : vWPos.xy; // rock seen from the side on cliffs
   float r = lum(texture2D(tRock, mix(p, rp, smoothstep(0.5, 0.8, slope)) / 9.0).rgb);
   float s = lum(texture2D(tSand, p / 6.0).rgb);
   float d = mix(g / 0.36, r / 0.42, smoothstep(0.38, 0.7, slope));
   d = mix(d, s / 0.55, 1.0 - smoothstep(0.8, 2.0, vWPos.y));
-  diffuseColor.rgb *= clamp(d, 0.55, 1.5);
+  diffuseColor.rgb *= clamp(1.0 + (d - 1.0) * 1.8, 0.45, 1.6); // stronger grain, still the region's colour
   for (int i = 0; i < ${TOWNS.length}; i++) {
     float k = 1.0 - smoothstep(uTowns[i].z * 0.85, uTowns[i].z, distance(p, uTowns[i].xy));
     if (k > 0.0) diffuseColor.rgb = mix(diffuseColor.rgb, texture2D(tCobble, p / 3.0).rgb * 0.95, k * 0.9);
