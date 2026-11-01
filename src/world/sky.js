@@ -88,7 +88,7 @@ export class SkySystem {
     this.moon.target.position.copy(center);
     this.moon.intensity = 0.55 * (1 - day);
 
-    this.hemi.intensity = lerp(0.3, 0.72, day);
+    this.hemi.intensity = lerp(0.22, 0.45, day); // the environment map adds the rest
     this.hemi.color.setRGB(lerp(0.25, 0.8, day), lerp(0.32, 0.9, day), lerp(0.55, 1, day));
 
     const fog = this.scene.fog.color;
@@ -97,6 +97,30 @@ export class SkySystem {
 
     this.starMat.opacity = smoothstep(0.1, 0.8, this.nightFactor);
     this.sky.material.uniforms.rayleigh.value = lerp(0.3, 2, day);
+  }
+
+  // Image-based lighting: the current sky is baked into an environment map so
+  // materials pick up its colour from every direction (re-baked as time passes).
+  updateEnv(renderer) {
+    if (!this.pmrem) {
+      this.pmrem = new THREE.PMREMGenerator(renderer);
+      this.envScene = new THREE.Scene();
+      this.envSky = new Sky();
+      this.envSky.scale.setScalar(900);
+      this.envScene.add(this.envSky);
+    }
+    const d = this.nightFactor;
+    if (this.envBaked != null && Math.abs(this.envBaked - d) < 0.04 && Math.abs((this.envT ?? -9) - this.time) < 0.5) return;
+    this.envBaked = d; this.envT = this.time;
+    const src = this.sky.material.uniforms, dst = this.envSky.material.uniforms;
+    for (const k of ['turbidity', 'rayleigh', 'mieCoefficient', 'mieDirectionalG']) dst[k].value = src[k].value;
+    dst.sunPosition.value.copy(src.sunPosition.value);
+    const rt = this.pmrem.fromScene(this.envScene, 0.02, 1, 2000);
+    this.envRT?.dispose();
+    this.envRT = rt;
+    this.scene.environment = rt.texture;
+    // the Sky shader is HDR and very bright: only a touch of it, or everything washes out
+    this.scene.environmentIntensity = 0.012 + 0.03 * (1 - d);
   }
 
   get clockText() {

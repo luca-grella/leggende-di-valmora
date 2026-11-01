@@ -8,10 +8,37 @@ import { makeCharacter } from './character.js';
 
 const windowMat = new THREE.MeshStandardMaterial({ color: 0x9cc3d9, emissive: 0xffc46b, emissiveIntensity: 0, roughness: 0.3 });
 const lampMat = new THREE.MeshStandardMaterial({ color: 0xfff1c9, emissive: 0xffd28a, emissiveIntensity: 0 });
+// Procedural textures drawn once on a canvas: rough plaster and clay roof tiles.
+function canvasTex(draw, size = 256, repeat = 1) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  draw(c.getContext('2d'), size);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.setScalar(repeat);
+  t.anisotropy = 4;
+  return t;
+}
+const plaster = canvasTex((ctx, n) => {
+  ctx.fillStyle = '#f2f2f2'; ctx.fillRect(0, 0, n, n);
+  for (let i = 0; i < 2600; i++) { const v = 200 + Math.random() * 55; ctx.fillStyle = `rgba(${v},${v},${v},0.35)`; ctx.fillRect(Math.random() * n, Math.random() * n, 2 + Math.random() * 5, 2 + Math.random() * 5); }
+  ctx.fillStyle = 'rgba(120,110,100,0.18)'; ctx.fillRect(0, n * 0.88, n, n * 0.12); // dirt along the base
+});
+const tiles = canvasTex((ctx, n) => {
+  ctx.fillStyle = '#e8e8e8'; ctx.fillRect(0, 0, n, n);
+  const rows = 8;
+  for (let r = 0; r < rows; r++) for (let c = 0; c < 6; c++) {
+    const x = (c + (r % 2) * 0.5) * (n / 6), y = r * (n / rows);
+    const g = ctx.createLinearGradient(0, y, 0, y + n / rows);
+    g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#9a9a9a');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x + n / 12, y + n / rows * 0.6, n / 13, n / rows * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+  }
+}, 256, 0.35);
 const matCache = new Map();
-const mat = (hex, rough = 0.85) => {
-  const k = `${hex}-${rough}`;
-  if (!matCache.has(k)) matCache.set(k, new THREE.MeshStandardMaterial({ color: hex, roughness: rough, flatShading: true }));
+const mat = (hex, rough = 0.85, map = null) => {
+  const k = `${hex}-${rough}-${map ? map.id : ''}`;
+  if (!matCache.has(k)) matCache.set(k, new THREE.MeshStandardMaterial({ color: hex, roughness: rough, flatShading: !map, map }));
   return matCache.get(k);
 };
 
@@ -37,9 +64,9 @@ function gableRoof(w, d, h) {
 function house({ w, d, h, wall, roof, floors = 1 }) {
   const g = new THREE.Group();
   const H = h * floors;
-  g.add(mesh(new THREE.BoxGeometry(w, H, d), mat(wall), 0, H / 2, 0));
+  g.add(mesh(new THREE.BoxGeometry(w, H, d), mat(wall, 0.9, plaster), 0, H / 2, 0));
   g.add(mesh(new THREE.BoxGeometry(w + 0.2, 0.35, d + 0.2), mat(0x8a8178), 0, 0.17, 0)); // plinth
-  g.add(mesh(gableRoof(w, d, Math.min(w, d) * 0.45), mat(roof, 0.7), 0, H, 0));
+  g.add(mesh(gableRoof(w, d, Math.min(w, d) * 0.45), mat(roof, 0.7, tiles), 0, H, 0));
   g.add(mesh(new THREE.BoxGeometry(1.1, 2.0, 0.12), mat(0x6b4a2f), 0, 1.0, d / 2 + 0.03)); // door
   const winGeo = new THREE.BoxGeometry(0.9, 0.9, 0.1);
   for (let f = 0; f < floors; f++) {

@@ -36,9 +36,18 @@ export function makeCharacter({ skin = 0xf1c7a3, shirt = 0xd94a3d, pants = 0x2e3
     brim.scale.set(1.1, 1, 1.25);
     body.add(brim);
   }
-  // eyes
-  const eyeGeo = new THREE.SphereGeometry(0.035, 6, 6);
-  body.add(part(eyeGeo, 0x1d1d1d, -0.085, 1.7, 0.225), part(eyeGeo, 0x1d1d1d, 0.085, 1.7, 0.225));
+  // face: eyes with whites, brows, nose, mouth, neck and a fringe
+  const eyeGeo = new THREE.SphereGeometry(0.035, 8, 6);
+  const whiteGeo = new THREE.SphereGeometry(0.05, 8, 6);
+  for (const s of [-1, 1]) {
+    const w = part(whiteGeo, 0xffffff, s * 0.085, 1.7, 0.212); w.scale.set(1, 0.8, 0.5); body.add(w);
+    body.add(part(eyeGeo, 0x2a1d14, s * 0.085, 1.698, 0.232));
+    const brow = part(new THREE.BoxGeometry(0.075, 0.016, 0.02), hair, s * 0.088, 1.765, 0.228); brow.rotation.z = -s * 0.12; body.add(brow);
+  }
+  body.add(part(new THREE.ConeGeometry(0.028, 0.07, 6), skin, 0, 1.655, 0.262).rotateX(Math.PI / 2));
+  const mouth = part(new THREE.BoxGeometry(0.07, 0.014, 0.01), 0x8a3b32, 0, 1.6, 0.238); body.add(mouth);
+  body.add(part(new THREE.CylinderGeometry(0.08, 0.09, 0.14, 8), skin, 0, 1.46, 0));
+  const fringe = part(new THREE.SphereGeometry(0.2, 10, 6, 0, Math.PI * 2, 0, Math.PI * 0.3), hair, 0, 1.79, 0.06); fringe.scale.set(1.25, 1, 1.15); body.add(fringe);
   if (backpack !== null) {
     const bp = part(new THREE.BoxGeometry(0.42, 0.46, 0.2), backpack, 0, 1.18, -0.27);
     body.add(bp);

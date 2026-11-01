@@ -304,6 +304,7 @@ class Game {
 
     const center = this.player.pos;
     this.sky.update(dt, center);
+    this.sky.updateEnv(this.renderer);
     this.water.update(dt, center, this.sky, this.scene.fog);
     this.towns.update(dt, this.sky.nightFactor, center);
     this.chunks.update(center.x, center.z, IS_MOBILE ? 5 : 7);
