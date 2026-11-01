@@ -158,6 +158,13 @@ export class Hud {
     t.classList.toggle('urgent', !!m.urgent);
   }
 
+  // the arrow in the objective panel: angle in radians, clockwise from "straight ahead"
+  setArrow(rad) {
+    const a = $('mission-arrow');
+    a.hidden = rad == null;
+    if (rad != null) a.style.transform = `rotate(${rad - Math.PI / 2}rad)`;
+  }
+
   showFire(on) {
     $('btn-fire').hidden = !on;
   }
@@ -265,7 +272,13 @@ export class Hud {
       + `Diario: <b>${Object.keys(st.seen).length}</b> visti, <b>${Object.keys(st.caught).length}</b> catturati su <b>${total}</b><br>`
       + `Allenatori battuti: <b>${Object.keys(st.beaten).length}</b> (campioni <b>${champs}</b>/9) · Lavoretti loschi: <b>${st.crimes || 0}</b>${st.blaster ? ' · 🎯 Spara-vernice' : ''}<br>`
       + 'Tocca un Velmon per metterlo in testa alla squadra.<br><button id="menu-bag">🎒 Zaino</button><button id="menu-quests">📜 Missioni</button>'
-      + `<button id="menu-adult">🔞 Scene per adulti: ${st.adult ? 'sì' : 'no'}</button>`;
+      + `<button id="menu-adult">🔞 Scene per adulti: ${st.adult ? 'sì' : 'no'}</button><button id="menu-reset">🗑️ Nuova partita</button>`;
+    $('menu-reset').onpointerdown = async (e) => {
+      e.stopPropagation();
+      this.closePanels();
+      const i = await this.choose('Ricominciare da zero?', [{ icon: '🗑️', label: 'Sì, cancella tutto e ricomincia', sub: 'Squadra, soldi, storia e missioni andranno persi.' }, { icon: '↩︎', label: 'No, torna al gioco' }]);
+      if (i === 0) game.resetGame();
+    };
     $('menu-quests').onpointerdown = async (e) => { e.stopPropagation(); this.closePanels(); await game.quests.journal(); };
     $('menu-adult').onpointerdown = (e) => { e.stopPropagation(); st.adult = !st.adult; game.save(); this.showMenu(game); };
     $('menu-bag').onpointerdown = async (e) => {

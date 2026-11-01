@@ -151,7 +151,11 @@ export class Crime {
         if (i === 0 || !town) continue;
         const a = this.game.player.facing + Math.PI + (Math.random() - 0.5);
         const g = this.addGuard(town, { x: P.x + Math.sin(a) * 30, z: P.z + Math.cos(a) * 30 }, true);
-        g.state = 'chase';
+        g.state = 'search'; g.searchT = 8; g.lastSeen = { x: P.x, z: P.z };
+      }
+      // guards within earshot come to check where it happened
+      for (const g of this.guards) {
+        if (g.stun <= 0 && g.state !== 'chase' && dist(g.obj.position, P) < 70) { g.state = 'search'; g.searchT = 6; g.lastSeen = { x: P.x, z: P.z }; }
       }
     }
     this.game.hud.setWanted(this.wanted);
@@ -350,6 +354,18 @@ export class Crime {
   }
 
   // ---------- guards ----------
+  // in front of the guard (wide field of view) or very close, and no building in between
+  canSee(g, d, dx, dz) {
+    if (this.game.player.indoor || d > 32) return false;
+    const fx = Math.sin(g.obj.rotation.y), fz = Math.cos(g.obj.rotation.y);
+    if (d > 5 && (dx * fx + dz * fz) / d < 0.15) return false;
+    const o = g.obj.position;
+    for (let k = 2; k < d - 1; k += 2) {
+      if (this.game.towns.inside(o.x + (dx / d) * k, o.z + (dz / d) * k, 0)) return false;
+    }
+    return true;
+  }
+
   async caught(g) {
     const game = this.game, st = game.state;
     game.busy = true;
@@ -358,7 +374,32 @@ export class Crime {
     g.bubble.visible = false;
     g.obj.lookAt(game.player.pos.x, g.obj.position.y, game.player.pos.z);
     game.player.faceTo(g.obj.position.x, g.obj.position.z);
-    await game.hud.say('Guardia', [['Alt! Guardia cittadina! Fermo dove sei!', 'Ti ho preso, furfante!', 'Fine della corsa, amico!'][Math.floor(Math.random() * 3)]]);
+    await game.hud.say('Guardia', [['Alt! Guardia cittadina! Mani bene in vista!', 'Ti ho preso, furfante! Non fare scherzi.', 'Fine della corsa, amico. Vieni con me.'][Math.floor(Math.random() * 3)]]);
+    // the player decides: give up, bribe or resist
+    const fine = Math.round(st.money * 0.2), bribe = 400 * this.wanted;
+    const opts = [{ icon: '🙌', label: 'Arrenditi', sub: `Paghi una multa di 💰 ${fine} e le stelle spariscono.` }];
+    if (st.money >= bribe) opts.push({ icon: '💶', label: 'Allunga una mazzetta', sub: `💰 ${bribe} e la guardia guarda dall'altra parte (forse).` });
+    opts.push({ icon: '✊', label: 'Opponi resistenza', sub: 'Lotta con i Velmon della guardia.' });
+    const pick = opts[await game.hud.choose('Ti hanno preso!', opts)];
+    if (pick.label === 'Arrenditi') {
+      st.money -= fine;
+      this.endArrest(g);
+      if (this.mission?.kind === 'theft' || this.mission?.kind === 'delivery') this.endMission(false, 'Le guardie ti hanno sequestrato la refurtiva');
+      await game.hud.say('Guardia', ['Saggia scelta. Pagata la multa, sei libero. E che non ti riveda più.']);
+      game.hud.setMoney(st.money); game.save(); game.busy = false;
+      return;
+    }
+    if (pick.label === 'Allunga una mazzetta') {
+      if (Math.random() < 0.8) {
+        st.money -= bribe;
+        this.endArrest(g);
+        await game.hud.say('Guardia', ['Mmh... non ho visto niente. Sparisci, prima che cambi idea.']);
+        game.hud.setMoney(st.money); game.save(); game.busy = false;
+        return;
+      }
+      await game.hud.say('Guardia', ['Una mazzetta? A ME? Adesso sì che sei nei guai!']);
+      this.wanted = Math.min(3, this.wanted + 1); game.hud.setWanted(this.wanted);
+    }
     const top = Math.max(...st.party.map((m) => m.level));
     const ids = ['voltino', 'fiammello', 'roccione', 'pipistro', 'scoiattolo', 'sabbiolo'];
     const team = Array.from({ length: Math.min(this.wanted, 2) }, (_, i) => {
@@ -386,6 +427,14 @@ export class Crime {
     }
     game.hud.setMoney(st.money);
     game.busy = false;
+  }
+
+  // the arrest is over: no more stars, every guard calms down
+  endArrest(g) {
+    this.wanted = 0; this.calm = 0;
+    this.game.hud.setWanted(0);
+    for (const x of this.guards) if (x.state === 'chase' || x.state === 'search') { x.state = 'return'; x.shouted = false; x.bubble.visible = false; }
+    g.state = 'return';
   }
 
   fire() {
@@ -484,8 +533,9 @@ export class Crime {
       }
     }
 
-    // guards
-    const chaseSpeed = 5.6 + this.wanted * 0.7;
+    // guards: they react only to what they can see, chase at a human pace,
+    // search where they last saw the player and finally give up
+    const chaseSpeed = 3.6 + this.wanted * 0.6;
     let chasing = false;
     for (const g of [...this.guards]) {
       const o = g.obj;
@@ -504,20 +554,39 @@ export class Crime {
         continue;
       }
       const inTown = g.extra || dist(P, g.town) < g.town.radius + 110;
-      if (this.wanted && inTown && d < 80) g.state = 'chase';
+      const sees = this.wanted && inTown && this.canSee(g, d, dx, dz);
+      if (sees) {
+        g.lastSeen = { x: P.x, z: P.z }; g.lostT = 0;
+        if (g.state !== 'chase') {
+          g.state = 'chase';
+          if (!g.shouted) { g.shouted = true; game.hud.toast(['👮 Alt! Fermati!', '👮 Eccolo! È lui!', '👮 Ehi tu, fermo!'][Math.floor(Math.random() * 3)], 1600); }
+        }
+      }
       let tx, tz, sp;
       if (g.state === 'chase') {
-        if (!this.wanted || !inTown) { g.state = 'return'; g.bubble.visible = false; continue; }
+        if (!this.wanted) { g.state = 'return'; g.bubble.visible = false; continue; }
         g.bubble.visible = true;
-        // hiding inside a house: the guards lose sight of the player
-        if (game.player.indoor) { o.userData.animate(dt, 0); continue; }
-        if (d < 35) chasing = true;
+        if (!sees) { g.lostT = (g.lostT || 0) + dt; if (g.lostT > 2.5) { g.state = 'search'; g.searchT = 6; } }
+        else if (d < 40) chasing = true;
         if (this.grace > 0) { o.userData.animate(dt, 0); continue; }
-        tx = P.x; tz = P.z; sp = chaseSpeed;
-        if (d < 1.6 && !game.busy && !game.hud.modal) { this.caught(g); continue; }
+        const goal = sees ? P : g.lastSeen;
+        tx = goal.x; tz = goal.z; sp = chaseSpeed;
+        // caught only after staying within reach for a moment
+        if (sees && d < 1.4) { g.grabT = (g.grabT || 0) + dt; if (g.grabT > 0.5 && !game.busy && !game.hud.modal) { g.grabT = 0; this.caught(g); continue; } } else g.grabT = 0;
+      } else if (g.state === 'search') {
+        g.bubble.visible = false;
+        const lp = g.lastSeen || g.home;
+        if (dist(o.position, lp) > 0.6) { tx = lp.x; tz = lp.z; sp = 2.4; }
+        else { // look around, then give up
+          g.searchT -= dt;
+          o.rotation.y += dt * 1.6 * Math.sin(this.t * 0.9);
+          o.userData.animate(dt, 0);
+          if (g.searchT <= 0) { g.state = 'return'; g.shouted = false; }
+          continue;
+        }
       } else if (g.state === 'return') {
         g.bubble.visible = false;
-        tx = g.home.x; tz = g.home.z; sp = 2.2;
+        tx = g.home.x; tz = g.home.z; sp = 1.5;
         if (dist(o.position, g.home) < 0.5) g.state = 'patrol';
       } else {
         if (!o.visible) continue;
@@ -527,14 +596,16 @@ export class Crime {
           if (g.wait < 0) { g.target = { x: g.home.x + (Math.random() - 0.5) * 18, z: g.home.z + (Math.random() - 0.5) * 18 }; g.wait = 2 + Math.random() * 4; }
           continue;
         }
-        tx = g.target.x; tz = g.target.z; sp = 1.4;
+        tx = g.target.x; tz = g.target.z; sp = 1.2;
       }
       const ex = tx - o.position.x, ez = tz - o.position.z, ed = Math.hypot(ex, ez);
       if (ed > 0.05) {
         const step = Math.min(sp * dt, ed);
         o.position.x += (ex / ed) * step; o.position.z += (ez / ed) * step;
         game.towns.collide(o.position, 0.4);
-        o.rotation.y = Math.atan2(ex, ez);
+        let r = Math.atan2(ex, ez) - o.rotation.y;
+        r = Math.atan2(Math.sin(r), Math.cos(r));
+        o.rotation.y += r * Math.min(dt * 6, 1);
       }
       o.position.y = heightAt(o.position.x, o.position.z);
       o.userData.animate(dt, sp);

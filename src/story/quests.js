@@ -7,7 +7,7 @@ import { mulberry32 } from '../core/noise.js';
 import { TOWNS, heightAt, slopeAt } from '../world/heightfield.js';
 import { makeCharacter } from '../world/character.js';
 import { findLand } from '../world/props.js';
-import { bubble } from '../world/markers.js';
+import { bubble, beacon } from '../world/markers.js';
 import { buildCreature } from '../creatures/model.js';
 import { createMonster } from '../creatures/monster.js';
 import { add as addItem } from '../items.js';
@@ -125,6 +125,10 @@ export class Quests {
       },
     };
     this.t = 0;
+    // a golden column of light over the current objective, visible from far away
+    this.guide = beacon(0xffc93c);
+    this.guide.visible = false;
+    game.scene.add(this.guide);
   }
 
   buildDepot(p) {
@@ -431,6 +435,30 @@ export class Quests {
     return heart;
   }
 
+  // Tender moments with choices: kisses, caresses, massages, whispers. Nothing explicit.
+  async intimacy(her, rounds = 3) {
+    const hud = this.game.hud;
+    const OPTS = [
+      { icon: '💋', label: 'Baciala', lines: ['Mmh... ancora.', 'Hai le labbra che sanno di sale.'] },
+      { icon: '✋', label: 'Accarezzale i capelli', lines: ['Continua così... mi rilassa.', 'Nessuno mi tocca i capelli così da anni.'] },
+      { icon: '💆', label: 'Massaggiale le spalle', lines: ['Oh sì, proprio lì... dieci anni di casse al porto.', 'Hai mani d\'oro, lo sai?'] },
+      { icon: '🤲', label: 'Massaggiale la schiena', lines: ['Più giù... no, ecco, perfetto.', 'Se continui così mi addormento. O forse no.'] },
+      { icon: '😘', label: 'Baciale il collo', lines: ['Ehi... così mi fai venire i brividi.', 'Questo è sleale. Rifallo.'] },
+      { icon: '🤗', label: 'Stringila a te', lines: ['Mi piace stare così.', 'Sento il tuo cuore che batte forte...'] },
+      { icon: '🗣️', label: 'Sussurrale qualcosa all\'orecchio', lines: ['Ma che cose dici! ...Dillo ancora.', 'Sei proprio un furfante, sai?'] },
+    ];
+    for (let r = 0; r < rounds; r++) {
+      const i = await hud.choose(`Cosa fai? ${'❤'.repeat(r + 1)}`, [...OPTS.map((o) => ({ icon: o.icon, label: o.label })), { icon: '➡️', label: r ? 'Continua' : 'Lascia fare a lei' }]);
+      if (i < 0 || i >= OPTS.length) break;
+      const o = OPTS[i];
+      const h = bubble('❤', '#ff3d68'); h.scale.setScalar(0.35);
+      h.position.copy(her.position).y += 2.0;
+      this.game.scene.add(h);
+      await hud.say('Marina', [o.lines[Math.floor(Math.random() * o.lines.length)]]);
+      this.game.scene.remove(h);
+    }
+  }
+
   async beachScene() {
     const game = this.game, hud = game.hud, P = game.player;
     game.busy = true;
@@ -442,7 +470,9 @@ export class Quests {
     game.cine = { pos: new THREE.Vector3(b.x + 0.5, look.y + 0.4, b.z + 4), look };
     await hud.say('Marina', ['Sei venuto davvero. E pure puntuale.', 'Guarda il mare... di notte sembra fatto d\'argento.', 'Lo sai che hai degli occhi pericolosi? Vieni più vicino.']);
     const heart = await this.kiss(P.model, m.obj);
-    await hud.say('Marina', ['Mmh... baci bene, straniero.', 'Casa mia è qui vicino. Non mi va che questa serata finisca in spiaggia.']);
+    await hud.say('Marina', ['Mmh... baci bene, straniero.']);
+    await this.intimacy(m.obj, 2);
+    await hud.say('Marina', ['Casa mia è qui vicino. Non mi va che questa serata finisca in spiaggia.']);
     game.scene.remove(heart);
     P.model.userData.body.rotation.x = m.obj.userData.body.rotation.x = 0;
     m.obj.position.set(m.x, heightAt(m.x, m.z), m.z);
@@ -465,6 +495,7 @@ export class Quests {
     game.cine = { pos: new THREE.Vector3(o.x + 0.1, y + 1.9, o.z + 3.2), look };
     await hud.say('Marina', ['Benvenuto nel mio piccolo regno.', 'Chiudi la porta... e smettila di guardarti intorno. Guarda me.']);
     const heart = await this.kiss(P.model, her);
+    await this.intimacy(her, 3);
     await hud.say('Marina', ['Fa caldo qui dentro, non trovi?', 'Lascia che ti aiuti con quella maglietta...']);
     // swap both to their underwear
     const meU = makeCharacter({ shirt: SKIN, pants: 0x1d3557, hat: null, backpack: null });
@@ -492,7 +523,9 @@ export class Quests {
     heart.scale.setScalar(0.4);
     // from the foot of the bed: two heads on the pillows, the rest under the blanket
     game.cine = { pos: new THREE.Vector3(bed.x + 1.9, y + 2.5, bed.z + 1.2), look: new THREE.Vector3(bed.x, y + 1.15, bed.z - 0.45) };
-    await hud.say('Marina', ['Mmh... finalmente.', 'Shh. Niente parole, adesso.', '...', 'Wow. Non male, per uno che viene da Borgo Alba.', 'Resta stanotte. Domattina ti preparo il caffè... se mi lasci alzare.']);
+    await hud.say('Marina', ['Mmh... finalmente.']);
+    await this.intimacy(herU, 3);
+    await hud.say('Marina', ['Shh. Niente parole, adesso.', '...', 'Wow. Non male, per uno che viene da Borgo Alba.', 'Resta stanotte. Domattina ti preparo il caffè... se mi lasci alzare.']);
     hud.toast('❤️ Tu e Marina siete una coppia', 2600);
     // back on your feet
     for (const o2 of [meU, herU, blanket, heart]) game.scene.remove(o2);
@@ -500,12 +533,13 @@ export class Quests {
     P.model.visible = true;
     P.place(o.x - 2, o.z, 0);
     game.cine = null;
-    this.advance('marina');
+    if (this.st.quests.marina === 2) this.advance('marina');
     game.busy = false;
   }
 
   onEnterHouse(house, room) {
-    if (house === this.marinaHouse && this.st.quests.marina === 2 && this.st.adult) this.bedroomScene(room);
+    // the first night completes the quest; afterwards Marina is happy to see you again
+    if (house === this.marinaHouse && this.st.adult && (this.st.quests.marina === 2 || this.st.quests.marina === 'done')) this.bedroomScene(room);
   }
 
   update(dt) {
@@ -523,6 +557,9 @@ export class Quests {
         || (n.id === 'neve' && q.main3 === 0) || (n.id === 'granmaestro' && q.main3 === 2)
         || (n.id === 'marina' && st.adult && (q.marina == null || q.marina === 0));
     }
+    const tr = this.tracked(), at = tr?.step.at?.();
+    this.guide.visible = !!at && !game.player.indoor && Math.hypot(P.x - at.x, P.z - at.z) > 6;
+    if (this.guide.visible) { this.guide.position.set(at.x, heightAt(at.x, at.z), at.z); this.guide.userData.animate(performance.now() / 1000); }
     if (this.pet.visible) this.pet.userData.animate(dt);
     if (this.legend.visible && Math.abs(P.x - this.legend.position.x) < 300 && Math.abs(P.z - this.legend.position.z) < 300) this.legend.userData.animate(dt);
     // "go there" steps complete on arrival

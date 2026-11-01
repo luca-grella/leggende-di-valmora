@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { clamp, smoothstep, lerp } from '../core/noise.js';
 
-export const DAY_LENGTH = 20 * 60; // seconds of real time for a full day
+export const DAY_LENGTH = 48 * 60; // seconds of real time for a full day
 
 const DAY_FOG = new THREE.Color(0xbfd8ee);
 const DUSK_FOG = new THREE.Color(0xe8a27a);

@@ -8,8 +8,8 @@ import { WORLD_HALF } from './world/regions.js';
 import { makeCharacter } from './world/character.js';
 import { clamp } from './core/noise.js';
 
-const WALK = 5.2, RUN = 10.5, GRAVITY = 22, JUMP = 7.5, RADIUS = 0.45;
-const SCOOTER = 22, SCOOTER_TURN = 2.6, SCOOTER_RADIUS = 0.8;
+const WALK = 3.3, RUN = 6.6, GRAVITY = 22, JUMP = 6.5, RADIUS = 0.45; // human pace
+const SCOOTER = 15, SCOOTER_TURN = 1.9, SCOOTER_RADIUS = 0.8;
 const SWIM_DEPTH = -1.15; // below this the trainer floats with the head above water
 
 export class Player {
@@ -95,14 +95,14 @@ export class Player {
     const len = Math.hypot(dx, dz);
     const target = len > 0.01 ? (this.swimming ? WALK * 0.75 : input.running ? RUN : WALK) * Math.min(ax.mag, 1) : 0;
     if (len > 0.01) { dx /= len; dz /= len; }
-    const acc = this.grounded ? 12 : 3;
+    const acc = this.grounded ? 7 : 2.5; // gentler starts and stops
     this.vel.x += (dx * target - this.vel.x) * Math.min(acc * dt, 1);
     this.vel.z += (dz * target - this.vel.z) * Math.min(acc * dt, 1);
     if (len > 0.01) {
       const want = Math.atan2(dx, dz);
       let d = want - this.facing;
       d = Math.atan2(Math.sin(d), Math.cos(d));
-      this.facing += d * Math.min(dt * 12, 1);
+      this.facing += d * Math.min(dt * 7, 1);
     }
 
     const old = this.pos.clone();
@@ -244,7 +244,7 @@ export class Player {
   }
 
   updateCamera(dt) {
-    this.camPos.lerp(this.desiredCamera(), Math.min(dt * 10, 1));
+    this.camPos.lerp(this.desiredCamera(), Math.min(dt * 6, 1));
     this.camera.position.copy(this.camPos);
     this.camera.lookAt(this.cameraTarget());
   }

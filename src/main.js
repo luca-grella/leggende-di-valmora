@@ -110,7 +110,15 @@ class Game {
     return this.newState();
   }
 
+  // wipes the save and starts over from the beginning
+  resetGame() {
+    this.resetting = true;
+    try { localStorage.removeItem(SAVE_KEY); } catch { /* storage unavailable */ }
+    location.reload();
+  }
+
   save() {
+    if (this.resetting) return;
     // inside a house the game resumes in front of its door
     const h = this.interiors.room?.house;
     this.state.pos = h ? { x: h.door.x, z: h.door.z, facing: h.rot } : { x: this.player.pos.x, z: this.player.pos.z, facing: this.player.facing };
@@ -345,10 +353,17 @@ class Game {
       this.hud.setPlace(room ? (room.shop ? `Bottega · ${room.town.region.town.name}` : `Casa a ${room.town.region.town.name}`) : r.name, this.sky.clockText);
       this.hud.drawMinimap(center.x, center.z, this.player.facing, this.crime.mapMarks().concat(this.quests.mapMarks()));
       // with no job running, the bottom panel shows the tracked quest
+      let target = this.crime.mission?.target;
       if (!this.crime.mission) {
         const tq = this.quests.tracked(), at = tq?.step.at?.();
-        this.hud.mission(tq && !this.interiors.inside ? { title: tq.q.title, goal: tq.step.text, timer: '', dist: at ? Math.round(Math.hypot(at.x - center.x, at.z - center.z)) : null } : null);
+        target = at;
+        this.hud.mission(tq && !this.interiors.inside ? { title: `⭐ ${tq.q.title}`, goal: tq.step.text, timer: '', dist: at ? Math.round(Math.hypot(at.x - center.x, at.z - center.z)) : null } : null);
       }
+      // an arrow that always points to where to go, relative to the camera
+      if (target && !this.interiors.inside) {
+        const y = this.player.camYaw, dx = target.x - center.x, dz = target.z - center.z;
+        this.hud.setArrow(Math.atan2(dx * Math.cos(y) - dz * Math.sin(y), -dx * Math.sin(y) - dz * Math.cos(y)));
+      } else this.hud.setArrow(null);
     }
     this.saveT += dt;
     if (this.saveT > 5 && !this.battle.active) { this.saveT = 0; this.save(); }

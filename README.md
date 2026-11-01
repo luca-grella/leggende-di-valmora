@@ -20,7 +20,7 @@ La vecchia versione 2D (stile GBA) è salvata nel tag [`v1-2d`](../../tree/v1-2d
   | Altopiano Ramato · *Rocca Ramata* | Arcipelago Corallo · *Porto Corallo* | Isole Solari · *Baia del Sole* |
 
 - Strade che collegano i paesi, mare con onde, isole raggiungibili a nuoto.
-- **Ciclo giorno/notte** di 20 minuti: di notte si accendono finestre e lampioni ed escono più Velmon di tipo Spettro.
+- **Ciclo giorno/notte** di 48 minuti: di notte si accendono finestre e lampioni ed escono più Velmon di tipo Spettro.
 - Ogni paese ha un **Centro Cura** (cura la squadra e ricarica le Sfere) e abitanti con cui parlare.
 - **45 specie di Velmon** in 11 tipi (20 di base, 24 forme evolute e il leggendario Aurorante), con tabella delle efficacie, mosse imparate salendo di livello ed esperienza.
 - **Evoluzioni**: raggiunto il livello giusto, a fine lotta il Velmon si evolve con un'animazione.
@@ -29,7 +29,8 @@ La vecchia versione 2D (stile GBA) è salvata nel tag [`v1-2d`](../../tree/v1-2d
   Vincere dà monete ed esperienza; perdere costa monete. Chi hai battuto resta battuto.
 - **Vita da strada** a Città Fulgida (Er Faina) e Porto Corallo (Zio Murena): consegne a tempo, colpi alle
   bancarelle, corse clandestine a cerchi, lotte clandestine con scommessa. Livello **ricercato** fino a 3 stelle:
-  le guardie ti inseguono e, se ti prendono, si lotta. **Scooter** da rubare e **Spara-vernice** che stordisce le guardie.
+  le guardie ti notano solo se ti vedono, ti inseguono a passo d'uomo, ti cercano dove ti hanno perso e poi rinunciano;
+  se ti prendono scegli: arrenderti (multa), una mazzetta o opporre resistenza (lotta). **Scooter** da rubare e **Spara-vernice** che stordisce le guardie.
 - **Case visitabili**: si entra in ogni casa di ogni paese. Dentro ci sono mobili, abitanti con cui parlare e
   cassetti, armadi e frighi da frugare (monete, Sfere, Pozioni… ma se il padrone di casa ti vede chiama le guardie).
   Nascondersi in casa fa perdere le tracce alle guardie.
@@ -42,12 +43,13 @@ La vecchia versione 2D (stile GBA) è salvata nel tag [`v1-2d`](../../tree/v1-2d
   dell'alba" (Guardiana Neve a Borgo Cristallo → santuario in cima ai Picchi Gelidi → Gran Maestro dell'Eclissi →
   cattura del leggendario **Aurorante**). **Missioni secondarie**: il Topolux di Nonna Rosa, Pane caldo, Re della strada,
   Cacciatore di tesori, Collezionista e, se attivate le scene per adulti, "Una sera a Porto Corallo" con Marina.
-  Diario 📜 Missioni nel menu Squadra; l'obiettivo seguito appare in basso e sulla mappa.
+  Diario 📜 Missioni nel menu Squadra; l'obiettivo seguito appare in basso con una freccia che indica la direzione,
+  sulla mappa e come colonna di luce dorata nel mondo. Nelle scene romantiche si sceglie cosa fare (baci, carezze, massaggi).
 - **Mondo più pieno**: accampamenti con campeggiatori, rovine, 35 forzieri nascosti, cartelli stradali, viaggiatori sulle strade.
 - **Grafica**: texture fotografiche CC0 da [Poly Haven](https://polyhaven.com) (prati, rocce, sabbia, ciottoli, intonaco,
   tegole, corteccia, tessuti), luce ambientale presa dal cielo, persone con proporzioni realistiche.
 - **Contenuti per adulti** (18+): si sceglie all'avvio e si cambia dal menu Squadra. Niente nudità esplicita.
-- Salvataggio automatico nel browser e pulsante **💾 Salva** nel menu Squadra.
+- Salvataggio automatico nel browser, pulsante **💾 Salva** e **🗑️ Nuova partita** nel menu Squadra.
 
 ## Comandi
 

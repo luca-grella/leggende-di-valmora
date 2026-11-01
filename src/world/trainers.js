@@ -24,7 +24,7 @@ const NAMES = ['Marco', 'Giulia', 'Sara', 'Paolo', 'Elena', 'Dario', 'Chiara', '
 const BEFORE = ['Ehi tu! Ci siamo guardati negli occhi: si lotta!', 'Mi alleno su questa strada da settimane. Fatti sotto!', 'Scommetto che i miei Velmon sono più forti dei tuoi!', 'Non si passa senza una lotta!', 'Finalmente qualcuno con cui lottare!'];
 const AFTER = ['Accidenti, sei fortissimo!', 'Devo allenarmi ancora...', 'Bella lotta! La prossima volta vinco io.', 'Va bene, va bene, hai vinto tu.'];
 
-const SIGHT = 13, CONE = 0.6, WALK = 4.5;
+const SIGHT = 13, CONE = 0.6, WALK = 3;
 
 // High-level trainers use the evolved forms of their species.
 function formFor(id, level) {

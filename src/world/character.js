@@ -112,7 +112,7 @@ export function makeCharacter({ skin = 0xf1c7a3, shirt = 0xd94a3d, pants = 0x2e3
       return;
     }
     const moving = speed > 0.2;
-    phase += dt * (moving ? 2.2 + speed * 0.9 : 1.2);
+    phase += dt * (moving ? 2.6 + speed * 1.2 : 1.2);
     const amp = moving ? Math.min(0.3 + speed * 0.07, 0.9) : 0;
     const sw = Math.sin(phase) * amp;
     const k = 0.35;
