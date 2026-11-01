@@ -64,6 +64,7 @@ button { font-family: inherit; cursor: pointer; }
 #btn-run { width: 58px; height: 58px; right: calc(30px + var(--safe-r)); bottom: calc(124px + var(--safe-b)); font-size: 12px; }
 #btn-run.on { background: rgba(47, 143, 216, 0.85) !important; }
 #btn-menu { width: 46px; height: 46px; right: calc(14px + var(--safe-r)); top: calc(146px + var(--safe-t)); font-size: 20px; }
+#btn-save { margin-left: auto; margin-right: 10px; border: 0; border-radius: 99px; padding: 7px 14px; font-weight: 700; background: #2f8fd8; color: #fff; }
 #btn-fire { width: 54px; height: 54px; right: calc(108px + var(--safe-r)); bottom: calc(96px + var(--safe-b)); font-size: 24px; background: rgba(155, 89, 255, 0.75) !important; }
 #battle-actions button.off { opacity: 0.4; }
 #btn-map { width: 46px; height: 46px; right: calc(68px + var(--safe-r)); top: calc(146px + var(--safe-t)); font-size: 20px; }

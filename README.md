@@ -22,9 +22,15 @@ La vecchia versione 2D (stile GBA) è salvata nel tag [`v1-2d`](../../tree/v1-2d
 - Strade che collegano i paesi, mare con onde, isole raggiungibili a nuoto.
 - **Ciclo giorno/notte** di 20 minuti: di notte si accendono finestre e lampioni ed escono più Velmon di tipo Spettro.
 - Ogni paese ha un **Centro Cura** (cura la squadra e ricarica le Sfere) e abitanti con cui parlare.
-- **19 specie di Velmon** in 11 tipi, con tabella delle efficacie, mosse imparate salendo di livello ed esperienza.
+- **44 specie di Velmon** in 11 tipi (20 di base e 24 forme evolute), con tabella delle efficacie, mosse imparate salendo di livello ed esperienza.
+- **Evoluzioni**: raggiunto il livello giusto, a fine lotta il Velmon si evolve con un'animazione.
 - **Lotte a turni** nel punto dell'incontro, **cattura con le Sfere**, squadra di 6 e Box per gli altri.
-- Salvataggio automatico nel browser.
+- **Allenatori**: due su ogni strada (ti vedono, compare "!" e vengono a sfidarti) e un campione in ogni paese.
+  Vincere dà monete ed esperienza; perdere costa monete. Chi hai battuto resta battuto.
+- **Vita da strada** a Città Fulgida (Er Faina) e Porto Corallo (Zio Murena): consegne a tempo, colpi alle
+  bancarelle, corse clandestine a cerchi, lotte clandestine con scommessa. Livello **ricercato** fino a 3 stelle:
+  le guardie ti inseguono e, se ti prendono, si lotta. **Scooter** da rubare e **Spara-vernice** che stordisce le guardie.
+- Salvataggio automatico nel browser e pulsante **💾 Salva** nel menu Squadra.
 
 ## Comandi
 
@@ -37,6 +43,8 @@ La vecchia versione 2D (stile GBA) è salvata nel tag [`v1-2d`](../../tree/v1-2d
 | Parlare, entrare, confermare | E o Invio | pulsante A |
 | Squadra | P o Tab | ☰ |
 | Mappa | M | 🗺 |
+| Spara-vernice | F | 🎯 |
+| Salire/scendere dallo scooter | E | A |
 | Indietro | Esc | ✕ |
 
 ## Come è fatto
@@ -44,7 +52,8 @@ La vecchia versione 2D (stile GBA) è salvata nel tag [`v1-2d`](../../tree/v1-2d
 - [Three.js](https://threejs.org/) + [Vite](https://vitejs.dev/), JavaScript senza framework. Tutta la grafica è
   generata dal codice: nessun modello o texture esterni.
 - `src/world/`: regioni, generazione del terreno (`heightfield.js`), pezzi di mondo con due livelli di dettaglio
-  (`terrain.js`), alberi ed erba con vento (`vegetation.js`), cielo e giorno/notte (`sky.js`), mare (`water.js`), paesi (`towns.js`).
+  (`terrain.js`), alberi ed erba con vento (`vegetation.js`), cielo e giorno/notte (`sky.js`), mare (`water.js`), paesi (`towns.js`),
+  allenatori (`trainers.js`), missioni, guardie e ricercato (`crime.js`), scooter (`scooter.js`), segnalini 3D (`markers.js`).
 - `src/creatures/`: specie, tipi e mosse (`species.js`), modelli 3D dei Velmon (`model.js`), statistiche ed esperienza (`monster.js`).
 - `src/battle/battle.js`: lotte e cattura. `src/ui/hud.js`: interfaccia. `src/player.js`: movimento e camera.
 - Su telefono il gioco usa automaticamente un profilo più leggero (distanza visiva, ombre, densità dell'erba).
@@ -59,9 +68,8 @@ Ogni push su `master` pubblica il gioco su GitHub Pages (`.github/workflows/depl
 
 ## Prossimi passi
 
-- Evoluzioni, più specie per regione e Velmon leggendari.
-- Allenatori da sfidare, palestre e la Lega di Valmora a Città Fulgida.
-- Negozi, oggetti, soldi e una storia per ogni regione.
-- Mezzi per attraversare il mondo più in fretta (bici, cavalcature, traghetti).
-- Attività "da grandi" nelle città: missioni losche, contrabbando, inseguimenti.
-- Interni degli edifici, grotte e dungeon.
+- Entrare nelle case, raccogliere e usare oggetti, negozi.
+- Mondo fuori dai paesi più pieno: persone, oggetti, luoghi da scoprire.
+- Una lunga storia principale e tante missioni secondarie, con relazioni e scene romantiche per adulti (avviso 18+ e interruttore per disattivarle).
+- Grafica molto più curata (luci, materiali, modelli più dettagliati).
+- Palestre, la Lega di Valmora e Velmon leggendari; traghetti e cavalcature.

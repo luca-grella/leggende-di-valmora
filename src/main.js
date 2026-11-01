@@ -43,6 +43,7 @@ class Game {
     this.chunks = new ChunkManager(this.scene, QUALITY);
     this.towns = new Towns(this.scene);
     this.player = new Player(this.scene, this.camera);
+    this.player.towns = this.towns;
     this.hud = new Hud();
     this.battle = new Battle(this);
     this.trainers = new Trainers(this.scene);

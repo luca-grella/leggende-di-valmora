@@ -228,6 +228,17 @@ export class Towns {
     }
   }
 
+  // true if the point is inside a building (with some padding)
+  inside(x, z, pad = 0.3) {
+    for (const c of this.colliders) {
+      if (Math.abs(x - c.x) > 20 || Math.abs(z - c.z) > 20) continue;
+      const cos = Math.cos(c.rot), sin = Math.sin(c.rot);
+      const lx = (x - c.x) * cos - (z - c.z) * sin, lz = (x - c.x) * sin + (z - c.z) * cos;
+      if (Math.abs(lx) < c.hx + pad && Math.abs(lz) < c.hz + pad) return true;
+    }
+    return false;
+  }
+
   nearestInteraction(pos) {
     let best = null, bd = Infinity;
     for (const it of this.interactables) {

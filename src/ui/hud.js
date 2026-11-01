@@ -263,6 +263,12 @@ export class Hud {
       + `Diario: <b>${Object.keys(st.seen).length}</b> visti, <b>${Object.keys(st.caught).length}</b> catturati su <b>${total}</b><br>`
       + `Allenatori battuti: <b>${Object.keys(st.beaten).length}</b> (campioni <b>${champs}</b>/9) · Lavoretti loschi: <b>${st.crimes || 0}</b>${st.blaster ? ' · 🎯 Spara-vernice' : ''}<br>`
       + 'Tocca un Velmon per metterlo in testa alla squadra.';
+    $('btn-save').onpointerdown = (e) => {
+      e.stopPropagation();
+      // manual save, on top of the automatic one every few seconds
+      game.save();
+      this.toast(game.crime.mission ? 'Partita salvata! (il lavoro in corso non viene salvato)' : 'Partita salvata!', 2000);
+    };
     $('menu').hidden = false;
     this.modal = true;
   }

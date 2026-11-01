@@ -207,7 +207,12 @@ export class Player {
   desiredCamera() {
     const t = this.cameraTarget();
     const cp = Math.cos(this.camPitch);
-    const p = new THREE.Vector3(t.x + Math.sin(this.camYaw) * cp * this.camDist, t.y + Math.sin(this.camPitch) * this.camDist, t.z + Math.cos(this.camYaw) * cp * this.camDist);
+    let dist = this.camDist;
+    // pull the camera in front of walls instead of looking through them
+    if (this.towns) for (let s = 1; s < dist; s += 0.5) {
+      if (this.towns.inside(t.x + Math.sin(this.camYaw) * cp * s, t.z + Math.cos(this.camYaw) * cp * s)) { dist = Math.max(1.5, s - 0.5); break; }
+    }
+    const p = new THREE.Vector3(t.x + Math.sin(this.camYaw) * cp * dist, t.y + Math.sin(this.camPitch) * dist, t.z + Math.cos(this.camYaw) * cp * dist);
     const g = Math.max(heightAt(p.x, p.z), 0.3) + 0.7; // never below ground or the sea surface
     if (p.y < g) p.y = g;
     return p;
