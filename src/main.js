@@ -53,6 +53,14 @@ class Game {
       const ao = new GTAOPass(this.scene, this.camera, innerWidth, innerHeight);
       ao.updateGtaoMaterial({ radius: 1.2, distanceExponent: 1.5, thickness: 1, scale: 1.1 });
       ao.blendIntensity = 0.85;
+      // the sky dome and the clouds confuse the occlusion (streaks in the sky): hide them from it
+      const aoRender = ao.render.bind(ao);
+      ao.render = (...a) => {
+        const hidden = [this.sky.sky, this.sky.stars, ...this.sky.clouds];
+        hidden.forEach((o) => (o.userData.v = o.visible, o.visible = false));
+        aoRender(...a);
+        hidden.forEach((o) => (o.visible = o.userData.v));
+      };
       this.composer.addPass(ao);
       this.composer.addPass(new OutputPass());
     }

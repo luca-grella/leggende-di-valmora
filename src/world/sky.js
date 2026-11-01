@@ -56,6 +56,7 @@ export class SkySystem {
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     this.starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 2.2, sizeAttenuation: false, transparent: true, opacity: 0, fog: false, depthWrite: false });
     this.stars = new THREE.Points(g, this.starMat);
+    this.makeClouds(scene);
     scene.add(this.stars);
 
     this.sunDir = new THREE.Vector3();
@@ -96,7 +97,46 @@ export class SkySystem {
     this.scene.background = null;
 
     this.starMat.opacity = smoothstep(0.1, 0.8, this.nightFactor);
+    this.updateClouds(dt, center, day, dusk);
     this.sky.material.uniforms.rayleigh.value = lerp(0.3, 2, day);
+  }
+
+  // Soft clouds: big billboards high in the sky, drifting with the wind and
+  // wrapping around the player so the sky is never empty.
+  makeClouds(scene) {
+    const c = document.createElement('canvas');
+    c.width = 256; c.height = 128;
+    const ctx = c.getContext('2d');
+    for (let i = 0; i < 22; i++) {
+      const x = 40 + Math.random() * 176, y = 50 + Math.random() * 40, r = 18 + Math.random() * 34;
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.6, 'rgba(255,255,255,0.7)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    this.cloudMat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, fog: false, opacity: 0.9 });
+    this.clouds = [];
+    for (let i = 0; i < 40; i++) {
+      const sp = new THREE.Sprite(this.cloudMat);
+      const w = 260 + Math.random() * 360;
+      sp.scale.set(w, w * 0.45, 1);
+      sp.position.set((Math.random() - 0.5) * 4400, 300 + Math.random() * 160, (Math.random() - 0.5) * 4400);
+      scene.add(sp);
+      this.clouds.push(sp);
+    }
+  }
+
+  updateClouds(dt, center, day, dusk) {
+    for (const c of this.clouds) {
+      c.position.x += dt * 6;
+      if (c.position.x - center.x > 2200) c.position.x -= 4400;
+      if (c.position.x - center.x < -2200) c.position.x += 4400;
+      if (c.position.z - center.z > 2200) c.position.z -= 4400;
+      if (c.position.z - center.z < -2200) c.position.z += 4400;
+    }
+    this.cloudMat.color.setRGB(lerp(0.12, 1, day), lerp(0.14, 1, day) - dusk * 0.25, lerp(0.2, 1, day) - dusk * 0.4);
+    this.cloudMat.opacity = lerp(0.35, 0.9, day);
   }
 
   // Image-based lighting: the current sky is baked into an environment map so
