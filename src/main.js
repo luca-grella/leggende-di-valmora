@@ -19,6 +19,7 @@ import { Grab } from './world/grab.js';
 import { Props } from './world/props.js';
 import { Quests } from './story/quests.js';
 import { Romance } from './story/romance.js';
+import { loadPeople, LOD, sweepPeople } from './world/people.js';
 import { TOWNS } from './world/heightfield.js';
 import { regionAt } from './world/regions.js';
 import { windUniforms } from './world/vegetation.js';
@@ -189,6 +190,7 @@ class Game {
     this.quests.init();
     this.renderer.setAnimationLoop((ts) => this.frame(ts));
     if (this.state.adult === undefined) await this.askAdult();
+    loadPeople().catch((e) => console.warn('realistic people not loaded', e));
     if (!this.state.started) this.intro();
     else this.hud.toast('Bentornato a Valmora!');
   }
@@ -365,6 +367,8 @@ class Game {
     } else this.hud.hint('');
 
     const center = this.player.pos;
+    LOD.x = center.x; LOD.z = center.z;
+    sweepPeople();
     this.sky.update(dt, center);
     this.sky.updateEnv(this.renderer);
     this.water.update(dt, center, this.sky, this.scene.fog);

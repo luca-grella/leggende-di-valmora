@@ -54,6 +54,8 @@ La vecchia versione 2D (stile GBA) è salvata nel tag [`v1-2d`](../../tree/v1-2d
   Dopo la prima notte puoi invitarla a uscire: **cena in osteria** (piedino sotto al tavolo, vino, dolce), **giro in scooter**,
   **bagno di notte** e **pic-nic**. Ogni uscita fa crescere l'**intesa** e cambia quello che ti dice; in camera candele e luci soffuse. Niente nudità o atti mostrati; ci si può tornare quando si vuole.
 - **Mondo più pieno**: accampamenti con campeggiatori, rovine, 35 forzieri nascosti, cartelli stradali, viaggiatori sulle strade.
+- **Persone realistiche**: vicino alla telecamera tutti diventano persone vere (avatar [Microsoft Rocketbox](https://github.com/microsoft/Microsoft-Rocketbox),
+  licenza MIT, vedi `public/people/LICENSE-Rocketbox.txt`) con camminata, corsa e respiro registrati da attori.
 - **Grafica**: texture fotografiche CC0 da [Poly Haven](https://polyhaven.com) (prati, rocce, sabbia, ciottoli, intonaco,
   tegole, corteccia, tessuti), luce ambientale presa dal cielo, persone con proporzioni realistiche.
 - **Contenuti per adulti** (18+): si sceglie all'avvio e si cambia dal menu Squadra. Niente nudità esplicita.

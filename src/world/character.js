@@ -5,6 +5,7 @@
 
 import * as THREE from 'three';
 import { tex } from './textures.js';
+import { LOD, peopleReady, makePerson, drivePerson, track, untrack } from './people.js';
 
 const mats = new Map();
 function mat(hex, kind = 'cloth') {
@@ -110,7 +111,24 @@ export function makeCharacter({ skin = 0xf1c7a3, shirt = 0xd94a3d, pants = 0x2e3
 
   const lerp = THREE.MathUtils.lerp;
   let phase = 0;
+  // close to the camera, a realistic person takes the place of this figure
+  const gender = longHair ? 'f' : 'm';
+  const seed = Math.abs((shirt * 7 + hair * 13 + pants * 3 + skin) | 0);
+  let real = null;
+  const entry = { lastFrame: 0, release: () => { if (!real) return; root.remove(real.obj); real = null; LOD.count--; body.visible = true; untrack(entry); } };
+  const useReal = (dt, speed) => {
+    const near = !root.userData.posed && !root.userData.sitting && !root.userData.noReal && peopleReady()
+      && Math.abs(root.position.x - LOD.x) < LOD.near && Math.abs(root.position.z - LOD.z) < LOD.near;
+    if (near && !real && LOD.count < LOD.max) { real = makePerson(gender, seed); root.add(real.obj); LOD.count++; track(entry); }
+    if (!near && real) entry.release();
+    body.visible = !real;
+    entry.lastFrame = LOD.frame;
+    if (real) drivePerson(real, dt, speed);
+    return !!real;
+  };
+
   root.userData.animate = (dt, speed) => {
+    if (useReal(dt, speed)) return;
     if (root.userData.posed) return;
     if (root.userData.sitting) { // riding: knees bent forward, hands on the handlebar
       legL.upper.rotation.x = legR.upper.rotation.x = -1.4;
