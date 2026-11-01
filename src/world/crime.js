@@ -29,8 +29,8 @@ const BLASTER_PRICE = 400;
 
 function fixerModel() {
   const o = makeCharacter({ shirt: 0x2b2b2b, pants: 0x1a1a1a, hat: 0x4a3b30, hatBrim: 0x4a3b30, backpack: null, hair: 0x111111 });
-  const glasses = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.08, 0.05), new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.2 }));
-  glasses.position.set(0, 1.71, 0.24);
+  const glasses = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.028, 0.02), new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.2 }));
+  glasses.position.set(0, 1.685, 0.112);
   o.userData.body.add(glasses);
   return o;
 }
@@ -314,7 +314,7 @@ export class Crime {
     const body = this.game.player.model.userData.body;
     if (on && !this.parcel) {
       this.parcel = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.42, 0.34), new THREE.MeshStandardMaterial({ color: 0xa47148, roughness: 0.9 }));
-      this.parcel.position.set(0, 1.2, -0.38);
+      this.parcel.position.set(0, 1.2, -0.27);
       this.parcel.castShadow = true;
       body.add(this.parcel);
     } else if (!on && this.parcel) { body.remove(this.parcel); this.parcel = null; }
@@ -416,8 +416,8 @@ export class Crime {
     const body = g.obj.userData.body;
     const paint = new THREE.MeshStandardMaterial({ color, roughness: 0.3 });
     for (let i = 0; i < 4; i++) {
-      const s = new THREE.Mesh(new THREE.SphereGeometry(0.1 + Math.random() * 0.08, 8, 6), paint);
-      s.position.set((Math.random() - 0.5) * 0.4, 1.0 + Math.random() * 0.8, 0.22);
+      const s = new THREE.Mesh(new THREE.SphereGeometry(0.06 + Math.random() * 0.05, 8, 6), paint);
+      s.position.set((Math.random() - 0.5) * 0.25, 1.0 + Math.random() * 0.5, 0.13);
       s.scale.z = 0.4;
       s.userData.paint = true;
       body.add(s);

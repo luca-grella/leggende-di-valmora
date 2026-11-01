@@ -65,7 +65,7 @@ export class Grab {
     it.resting = false;
     const body = this.game.player.model.userData.body;
     body.add(it.obj);
-    it.obj.position.set(0, it.k.heavy ? 1.3 : 1.15, it.k.heavy ? 0.5 : 0.42);
+    it.obj.position.set(0, it.k.heavy ? 1.25 : 1.1, it.k.heavy ? 0.42 : 0.32);
     it.obj.rotation.set(0, 0, 0);
   }
 
