@@ -37,7 +37,8 @@ La vecchia versione 2D (stile GBA) è salvata nel tag [`v1-2d`](../../tree/v1-2d
   **Zaino** dal menu Squadra o durante le lotte.
 - **Oggetti da prendere e lanciare** (vasi, mele, palle, libri, casse): colpire una guardia la lascia stordita.
 - **Storia**: Capitolo 1 "L'ombra dell'Eclissi" (Campione di Borgo Alba → Prof.ssa Quercia → Dott. Ginepro a Villa
-  Petalo → accampamento dell'Eclissi). **Missioni secondarie**: il Topolux di Nonna Rosa, Pane caldo, Re della strada,
+  Petalo → accampamento dell'Eclissi) e Capitolo 2 "Il magazzino dell'Eclissi" (Er Faina → magazzino a sud di Città
+  Fulgida → Comandante Notte → Prof.ssa Quercia), che svela il Velmon leggendario Aurorante. **Missioni secondarie**: il Topolux di Nonna Rosa, Pane caldo, Re della strada,
   Cacciatore di tesori, Collezionista e, se attivate le scene per adulti, "Una sera a Porto Corallo" con Marina.
   Diario 📜 Missioni nel menu Squadra; l'obiettivo seguito appare in basso e sulla mappa.
 - **Mondo più pieno**: accampamenti con campeggiatori, rovine, 35 forzieri nascosti, cartelli stradali, viaggiatori sulle strade.
@@ -82,6 +83,6 @@ Ogni push su `master` pubblica il gioco su GitHub Pages (`.github/workflows/depl
 
 ## Prossimi passi
 
-- Capitolo 2 della storia (il covo dell'Eclissi a Città Fulgida) e altri capitoli; altre missioni secondarie e relazioni.
-- Grafica molto più curata (luci, materiali, modelli più dettagliati).
+- Capitolo 3 (il santuario di Aurorante sui Picchi Gelidi) e oltre; altre missioni secondarie e relazioni.
+- Grafica ancora più curata (modelli più dettagliati, animazioni, effetti).
 - Palestre, la Lega di Valmora e Velmon leggendari; traghetti e cavalcature.

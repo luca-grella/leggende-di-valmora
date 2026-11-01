@@ -166,6 +166,7 @@ export class Crime {
     const game = this.game, st = game.state;
     game.busy = true;
     f.obj.lookAt(game.player.pos.x, f.obj.position.y, game.player.pos.z);
+    if (await game.quests.onFixer(f)) { game.busy = false; return; }
     if (this.mission) {
       const i = await game.hud.choose(`${f.name}: "Hai già un lavoro in corso."`, [{ icon: '👍', label: 'Ci sto lavorando' }, { icon: '✋', label: 'Lascio perdere il lavoro', sub: 'Il lavoro fallisce, niente paga.' }]);
       if (i === 1) this.endMission(false, 'Hai mollato il lavoro.');

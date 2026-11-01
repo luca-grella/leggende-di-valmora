@@ -20,7 +20,7 @@ export class Quests {
   constructor(game) {
     this.game = game;
     const rnd = mulberry32(2024);
-    const alba = town('aurora'), petalo = town('fiorita'), muschio = town('giada'), corallo = town('corallo');
+    const alba = town('aurora'), petalo = town('fiorita'), muschio = town('giada'), corallo = town('corallo'), fulgida = town('fulgida');
     this.camp = findLand(rnd, petalo.x, petalo.z, 320) || { x: petalo.x + 200, z: petalo.z };
     this.briciola = findLand(rnd, alba.x, alba.z, 260) || { x: alba.x + 150, z: alba.z + 80 };
     this.beach = this.findBeach(rnd, corallo) || { x: corallo.x + 120, z: corallo.z + 60 };
@@ -47,6 +47,12 @@ export class Quests {
     const grunt = { shirt: 0x212121, pants: 0x212121, hat: 0x6a1b9a, hatBrim: 0x212121, backpack: null };
     npc('eclissi1', 'Recluta dell\'Eclissi', grunt, this.camp.x + 2, this.camp.z);
     npc('eclissi2', 'Recluta dell\'Eclissi', grunt, this.camp.x - 2, this.camp.z + 1.5);
+    // Chapter 2: the Eclissi warehouse outside Città Fulgida
+    this.depot = findLand(rnd, fulgida.x, fulgida.z + 260, 160) || { x: fulgida.x + 60, z: fulgida.z + 300 };
+    this.buildDepot(this.depot);
+    npc('eclissi3', 'Recluta dell\'Eclissi', grunt, this.depot.x - 4, this.depot.z + 9);
+    npc('eclissi4', 'Recluta dell\'Eclissi', grunt, this.depot.x + 4, this.depot.z + 9);
+    npc('notte', 'Comandante Notte', { shirt: 0x4a148c, pants: 0x111111, hat: 0x111111, hatBrim: 0x6a1b9a, backpack: null, longHair: true, hair: 0xd1c4e9 }, this.depot.x, this.depot.z + 6.5);
     // Briciola, the lost Topolux
     this.pet = buildCreature('topolux');
     this.pet.position.set(this.briciola.x, heightAt(this.briciola.x, this.briciola.z), this.briciola.z);
@@ -63,6 +69,16 @@ export class Quests {
           { text: 'Torna dal Dott. Ginepro', at: () => ({ x: petalo.x + 8, z: petalo.z - 6 }) },
         ],
         reward: { money: 1500, items: { superpozione: 2 } },
+      },
+      main2: {
+        title: 'Capitolo 2 · Il magazzino dell\'Eclissi', main: true,
+        steps: [
+          { text: 'Chiedi informazioni a Er Faina, nei vicoli di Città Fulgida', at: () => game.crime.fixers[0] },
+          { text: 'Sconfiggi le due reclute davanti al magazzino dell\'Eclissi', at: () => this.depot, done: (s) => s.beaten.eclissi3 && s.beaten.eclissi4 },
+          { text: 'Sconfiggi il Comandante Notte', at: () => this.depot, done: (s) => s.beaten.notte },
+          { text: 'Racconta tutto alla Prof.ssa Quercia a Borgo Alba', at: () => ({ x: alba.x + 5, z: alba.z + 6 }) },
+        ],
+        reward: { money: 3000, items: { ravviva: 2, superpozione: 2 } },
       },
       briciola: {
         title: 'Il Topolux di Nonna Rosa',
@@ -93,6 +109,31 @@ export class Quests {
     this.t = 0;
   }
 
+  buildDepot(p) {
+    const g = new THREE.Group();
+    const h = heightAt(p.x, p.z);
+    g.position.set(p.x, h, p.z);
+    const m = (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.8, flatShading: true });
+    const add = (geo, mt, x, y, z) => { const o = new THREE.Mesh(geo, mt); o.position.set(x, y, z); o.castShadow = o.receiveShadow = true; g.add(o); return o; };
+    add(new THREE.BoxGeometry(16, 6, 10), m(0x6d6f73), 0, 3, 0);
+    add(new THREE.BoxGeometry(16.6, 0.6, 10.6), m(0x3b3d40), 0, 6.3, 0);
+    add(new THREE.BoxGeometry(5, 4.5, 0.2), m(0x44474b), 0, 2.25, 5.05); // shutter
+    add(new THREE.BoxGeometry(3, 4, 0.1), m(0x6a1b9a), -5.5, 3.8, 5.08); // purple banners
+    add(new THREE.BoxGeometry(3, 4, 0.1), m(0x6a1b9a), 5.5, 3.8, 5.08);
+    for (const s of [-1, 1]) add(new THREE.CircleGeometry(0.9, 20), new THREE.MeshStandardMaterial({ color: 0xffd23f, emissive: 0xffb300, emissiveIntensity: 0.6 }), s * 5.5, 4.3, 5.14);
+    this.game.scene.add(g);
+    this.game.towns.colliders.push({ x: p.x, z: p.z, rot: 0, hx: 8.2, hz: 5.2 });
+    for (let i = 0; i < 4; i++) this.game.grab?.spawn?.('cassa', p.x - 7 + i * 1.2, null, p.z + 7.5 + (i % 2), false);
+  }
+
+  // Er Faina knows where the Eclissi hides (chapter 2); true if handled
+  async onFixer(f) {
+    if (f.town !== 'fulgida' || this.st.quests.main2 !== 0) return false;
+    await this.game.hud.say(f.name, ['L\'Eclissi? Gente che paga bene e fa troppe domande.', 'Hanno un magazzino a sud della città, con le bandiere viola. Io non ti ho detto niente, eh.', 'E se ci vai, porta una squadra forte. Il loro comandante è una tosta.']);
+    this.advance('main2');
+    return true;
+  }
+
   findBeach(rnd, t) {
     for (let i = 0; i < 200; i++) {
       const a = rnd() * Math.PI * 2, r = 130 + rnd() * 250;
@@ -111,6 +152,7 @@ export class Quests {
     st.quests ??= {};
     for (const id of ['strada', 'tesori', 'collezione']) st.quests[id] ??= 0;
     if (st.started) st.quests.main1 ??= 0;
+    if (st.quests.main1 === 'done') st.quests.main2 ??= 0;
     if (st.quests.briciola === 'done') this.pet.visible = false;
     this.check(true);
   }
@@ -187,6 +229,12 @@ export class Quests {
   async onProf() {
     const st = this.st, hud = this.game.hud;
     if (st.quests.main1 === 0) { await hud.say('Prof.ssa Quercia', ['Il Campione di Borgo Alba è lì vicino al pozzo. Battilo e torna da me: ho un incarico importante per te.']); return true; }
+    if (st.quests.main2 === 3) {
+      await hud.say('Prof.ssa Quercia', ['Aurorante... il Velmon dell\'alba. Credevo fosse solo una leggenda.', 'Se l\'Eclissi riesce a catturarlo, potrà piegare il ciclo del giorno e della notte a suo piacimento.', 'Dobbiamo arrivare al santuario sui Picchi Gelidi prima di loro. Ma ti servirà una squadra fortissima. Allenati, e preparati al viaggio.']);
+      this.advance('main2');
+      hud.banner('Continua nel Capitolo 3…', 'Capitolo 2 completato');
+      return true;
+    }
     if (st.quests.main1 === 1) {
       await hud.say('Prof.ssa Quercia', ['Hai battuto il Campione! Allora sei pronto.', 'Negli ultimi giorni molti Velmon sono spariti. Si parla di un gruppo vestito di nero: l\'Eclissi.', 'Porta questa lettera al mio collega, il Dott. Ginepro, a Villa Petalo, a ovest sulla costa. Lui sa di più.']);
       this.advance('main1');
@@ -208,17 +256,30 @@ export class Quests {
         } else if (q.main1 === 4) {
           await hud.say(n.name, ['Li hai messi in fuga! I Velmon delle fattorie sono liberi.', 'Ma questo era solo un avamposto. Dalle loro carte, il covo dell\'Eclissi è a Città Fulgida, sotto il naso di tutti...', 'Prendi questo per il disturbo. Il viaggio vero comincia adesso.']);
           this.advance('main1');
-          hud.banner('Continua nel Capitolo 2…', 'Capitolo 1 completato');
+          hud.banner('Inizia il Capitolo 2', 'Capitolo 1 completato');
+          this.start('main2');
         } else await hud.say(n.name, ['La Costa Fiorita è bellissima in primavera. Peccato per tutti questi furti...']);
         break;
-      case 'eclissi1': case 'eclissi2': {
-        if (q.main1 !== 3 || st.beaten[n.id]) { await hud.say(n.name, [st.beaten[n.id] ? 'Ahia... il capo non sarà contento.' : 'Circolare, non c\'è niente da vedere qui.']); break; }
+      case 'eclissi1': case 'eclissi2': case 'eclissi3': case 'eclissi4': case 'notte': {
+        const ch2 = n.id !== 'eclissi1' && n.id !== 'eclissi2';
+        const ready = ch2 ? (n.id === 'notte' ? q.main2 === 2 : q.main2 === 1) : q.main1 === 3;
+        if (n.id === 'notte' && !st.beaten.notte && q.main2 === 1) { await hud.say(n.name, ['Prima passa sulle mie reclute, moscerino.']); break; }
+        if (!ready || st.beaten[n.id]) { await hud.say(n.name, [st.beaten[n.id] ? 'Ahia... il capo non sarà contento.' : 'Circolare, non c\'è niente da vedere qui.']); break; }
         await hud.say(n.name, ['Un ficcanaso! L\'Eclissi non perdona chi mette il becco nei suoi affari!']);
         const top = Math.max(...st.party.map((m) => m.level));
-        const team = (n.id === 'eclissi1' ? ['pipistro', 'topolux'] : ['ombrale', 'sabbiolo', 'voltino']).map((id) => createMonster(id, Math.max(8, Math.min(top, 18))));
-        const out = await game.battle.start(null, { trainer: { name: n.name, team, reward: 500, fine: 200, obj: n.obj } });
+        const TEAMS = { eclissi1: ['pipistro', 'topolux'], eclissi2: ['ombrale', 'sabbiolo', 'voltino'], eclissi3: ['vampistro', 'ratolux'], eclissi4: ['tenebrale', 'desertauro'], notte: ['vampistro', 'tenebrale', 'fulminax'] };
+        const lv = ch2 ? Math.max(18, Math.min(top + (n.id === 'notte' ? 2 : 0), 40)) : Math.max(8, Math.min(top, 18));
+        if (n.id === 'notte') await hud.say(n.name, ['Così sei tu quello che ha sgominato l\'avamposto di Villa Petalo.', 'Il Gran Maestro mi ha parlato di te. Vediamo se valevi tutto questo disturbo.']);
+        const team = TEAMS[n.id].map((id) => createMonster(id, lv));
+        const out = await game.battle.start(null, { trainer: { name: n.name, team, reward: n.id === 'notte' ? 2500 : 800, fine: 300, obj: n.obj } });
         n.obj.position.set(n.x, heightAt(n.x, n.z), n.z);
-        if (out === 'win') { st.beaten[n.id] = true; game.busy = true; await hud.say(n.name, ['Non finisce qui! Il capo ve la farà pagare!']); this.check(); }
+        if (out === 'win') {
+          st.beaten[n.id] = true; game.busy = true;
+          await hud.say(n.name, n.id === 'notte'
+            ? ['Impossibile... battuta da un ragazzino.', 'Goditi la vittoria. Il Gran Maestro ha già quello che cercava: la mappa per il santuario di Aurorante, sui Picchi Gelidi.', 'Quando il Velmon leggendario sarà nostro, nessuno potrà fermare l\'Eclissi!']
+            : ['Non finisce qui! Il capo ve la farà pagare!']);
+          this.check();
+        }
         break;
       }
       case 'rosa':
@@ -382,7 +443,8 @@ export class Quests {
       // a golden "!" over whoever has something for you
       const q = st.quests || {};
       n.mark.visible = (n.id === 'rosa' && (q.briciola == null || q.briciola === 1)) || (n.id === 'fornaio' && q.pane == null) || (n.id === 'fornaia' && q.pane === 0)
-        || (n.id === 'ginepro' && (q.main1 === 2 || q.main1 === 4)) || (n.id.startsWith('eclissi') && q.main1 === 3 && !st.beaten[n.id])
+        || (n.id === 'ginepro' && (q.main1 === 2 || q.main1 === 4)) || ((n.id === 'eclissi1' || n.id === 'eclissi2') && q.main1 === 3 && !st.beaten[n.id])
+        || ((n.id === 'eclissi3' || n.id === 'eclissi4') && q.main2 === 1 && !st.beaten[n.id]) || (n.id === 'notte' && q.main2 === 2)
         || (n.id === 'marina' && st.adult && (q.marina == null || q.marina === 0));
     }
     if (this.pet.visible) this.pet.userData.animate(dt);
