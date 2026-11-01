@@ -44,7 +44,12 @@ La vecchia versione 2D (stile GBA) è salvata nel tag [`v1-2d`](../../tree/v1-2d
   cattura del leggendario **Aurorante**). **Missioni secondarie**: il Topolux di Nonna Rosa, Pane caldo, Re della strada,
   Cacciatore di tesori, Collezionista e, se attivate le scene per adulti, "Una sera a Porto Corallo" con Marina.
   Diario 📜 Missioni nel menu Squadra; l'obiettivo seguito appare in basso con una freccia che indica la direzione,
-  sulla mappa e come colonna di luce dorata nel mondo. Nelle scene romantiche si sceglie cosa fare (baci, carezze, massaggi).
+  sulla mappa e come colonna di luce dorata nel mondo.
+- **Storie romantiche (18+)** con 14 ragazze (Marina più 13 sparse nei paesi, 4 a Borgo Alba), riconoscibili dal ❤ sopra
+  la testa. Ognuna ha un carattere (dolce, audace, timida, ironica) e un modo diverso di conquistarla: un regalo da
+  portarle in mano, un regalo in monete, una lotta, battere il Campione del paese o catturare tante specie. Poi
+  l'appuntamento all'ora che preferisce e la notte a casa sua, scegliendo cosa fare (baci, carezze, massaggi a spalle,
+  schiena, gambe e piedi, baci sul collo e sui piedi). Niente nudità o atti mostrati; ci si può tornare quando si vuole.
 - **Mondo più pieno**: accampamenti con campeggiatori, rovine, 35 forzieri nascosti, cartelli stradali, viaggiatori sulle strade.
 - **Grafica**: texture fotografiche CC0 da [Poly Haven](https://polyhaven.com) (prati, rocce, sabbia, ciottoli, intonaco,
   tegole, corteccia, tessuti), luce ambientale presa dal cielo, persone con proporzioni realistiche.

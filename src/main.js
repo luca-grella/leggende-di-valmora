@@ -18,6 +18,7 @@ import { Interiors } from './world/interiors.js';
 import { Grab } from './world/grab.js';
 import { Props } from './world/props.js';
 import { Quests } from './story/quests.js';
+import { Romance } from './story/romance.js';
 import { TOWNS } from './world/heightfield.js';
 import { regionAt } from './world/regions.js';
 import { windUniforms } from './world/vegetation.js';
@@ -78,6 +79,7 @@ class Game {
     this.grab = new Grab(this);
     this.props = new Props(this);
     this.quests = new Quests(this);
+    this.romance = new Romance(this);
     this.input = new Input(canvas, {
       joyBase: $('joy-base'), joyKnob: $('joy-knob'), btnA: $('btn-a'), btnMenu: $('btn-menu'),
       btnMap: $('btn-map'), btnJump: $('btn-jump'), btnRun: $('btn-run'), btnFire: $('btn-fire'),
@@ -265,6 +267,7 @@ class Game {
     if (['fixer', 'scooter', 'stall'].includes(it.kind)) return this.crime.interact(it);
     if (['door', 'exit', 'rummage', 'shop', 'resident'].includes(it.kind)) return this.interiors.interact(it);
     if (it.kind === 'quest') return this.quests.talk(it.n);
+    if (it.kind === 'girl') return this.romance.talk(it.g);
     if (it.kind === 'pet') return this.quests.petFound();
     if (it.kind === 'legend') return this.quests.faceLegend();
     if (it.kind === 'chest') return this.props.open(it.c);
@@ -314,6 +317,7 @@ class Game {
     this.grab.update(dt);
     this.props.update(dt, t);
     this.quests.update(dt);
+    this.romance.update(dt);
 
     const frozen = this.busy || this.hud.modal || this.battle.active;
     if (!this.battle.active) {
@@ -379,7 +383,7 @@ class Game {
     if (this.grab.held) return this.grab.nearest(P);
     const all = this.interiors.inside
       ? [this.interiors.nearest(P), this.grab.nearest(P)].filter(Boolean)
-      : [this.towns.nearestInteraction(P), this.trainers.nearest(P), this.crime.nearest(P), this.interiors.nearest(P), this.grab.nearest(P), this.quests.nearest(P), this.props.nearest(P)].filter(Boolean);
+      : [this.towns.nearestInteraction(P), this.trainers.nearest(P), this.crime.nearest(P), this.interiors.nearest(P), this.grab.nearest(P), this.quests.nearest(P), this.props.nearest(P), this.romance.nearest(P)].filter(Boolean);
     all.sort((a, b) => a.d - b.d);
     const it = all[0];
     if (it?.kind === 'trainer') it.hint = `A · Parla con ${it.tr.name}`;

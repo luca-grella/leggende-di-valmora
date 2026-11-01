@@ -40,7 +40,7 @@ export class Grab {
   }
 
   clearIndoor() {
-    if (this.held?.indoor) this.drop();
+    if (this.held?.indoor) this.held.indoor = false; // keep carrying it outside
     for (const it of this.items.filter((i) => i.indoor)) { this.game.scene.remove(it.obj); this.items.splice(this.items.indexOf(it), 1); }
   }
 
