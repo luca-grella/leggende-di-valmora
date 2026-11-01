@@ -3,6 +3,7 @@
 // draws as a single InstancedMesh per chunk.
 
 import * as THREE from 'three';
+import { photoDetail } from './textures.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { mulberry32 } from '../core/noise.js';
 
@@ -161,7 +162,7 @@ const treeGeos = {};
 let treeMat;
 export function treeAssets(type) {
   if (!treeGeos[type]) treeGeos[type] = TREE_BUILDERS[type]();
-  if (!treeMat) treeMat = addWind(new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.85 }), 0.012, 1.4);
+  if (!treeMat) treeMat = photoDetail(addWind(new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.85 }), 0.012, 1.4), 'tree');
   return { geometry: treeGeos[type], material: treeMat };
 }
 
@@ -170,7 +171,7 @@ export function rockAssets() {
   if (!rockGeo) {
     const g = blob(1, 0, 0, 0.35, 0, 1.3, 0.75, 1.1, 90);
     rockGeo = colored(g, 0xffffff, 0.25, 91); // tinted per region through instanceColor
-    rockMat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.95 });
+    rockMat = photoDetail(new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.95 }), 'rock');
   }
   return { geometry: rockGeo, material: rockMat };
 }
