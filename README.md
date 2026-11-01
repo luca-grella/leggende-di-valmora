@@ -50,7 +50,9 @@ La vecchia versione 2D (stile GBA) è salvata nel tag [`v1-2d`](../../tree/v1-2d
   portarle in mano, un regalo in monete, una lotta, battere il Campione del paese o catturare tante specie. Poi
   l'appuntamento all'ora che preferisce e la notte a casa sua, scegliendo cosa fare (baci, carezze, massaggi a spalle,
   schiena, gambe e piedi, baci e leccate su collo e piedi, mordicchiare l'orecchio, "lasciati guidare da lei" con
-  battute diverse per ogni carattere). Niente nudità o atti mostrati; ci si può tornare quando si vuole.
+  battute diverse per ogni carattere).
+  Dopo la prima notte puoi invitarla a uscire: **cena in osteria** (piedino sotto al tavolo, vino, dolce), **giro in scooter**,
+  **bagno di notte** e **pic-nic**. Ogni uscita fa crescere l'**intesa** e cambia quello che ti dice; in camera candele e luci soffuse. Niente nudità o atti mostrati; ci si può tornare quando si vuole.
 - **Mondo più pieno**: accampamenti con campeggiatori, rovine, 35 forzieri nascosti, cartelli stradali, viaggiatori sulle strade.
 - **Grafica**: texture fotografiche CC0 da [Poly Haven](https://polyhaven.com) (prati, rocce, sabbia, ciottoli, intonaco,
   tegole, corteccia, tessuti), luce ambientale presa dal cielo, persone con proporzioni realistiche.

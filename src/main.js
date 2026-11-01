@@ -372,7 +372,11 @@ class Game {
     this.saveT += dt;
     if (this.saveT > 5 && !this.battle.active) { this.saveT = 0; this.save(); }
 
-    if (this.composer) this.composer.render(); else this.renderer.render(this.scene, this.camera);
+    if (this.composer) {
+      // the composer can start at size zero if the page loaded in a hidden tab
+      if (this.composer.renderTarget1.width !== this.renderer.domElement.width) this.composer.setSize(innerWidth, innerHeight);
+      this.composer.render();
+    } else this.renderer.render(this.scene, this.camera);
     input.endFrame();
   }
 

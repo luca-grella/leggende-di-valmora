@@ -438,7 +438,8 @@ export class Quests {
   // Tender moments with choices: kisses, caresses, massages, whispers. Nothing explicit.
   // Tender moments with choices. Nothing explicit is ever shown or described.
   // feet: optional { massage, kiss, lick } reactions that fit her personality
-  async intimacy(her, rounds = 3, name = 'Marina', guide = null, feet = null) {
+  // extra: more choices for this moment; only: limit to these labels (public places)
+  async intimacy(her, rounds = 3, name = 'Marina', guide = null, feet = null, extra = [], only = null) {
     const hud = this.game.hud;
     const OPTS = [
       { icon: '💋', label: 'Baciala', lines: ['Mmh... ancora.', 'Non smettere.', 'Baci come se fosse l\'ultima volta.'] },
@@ -457,10 +458,11 @@ export class Quests {
       // allusive only: nothing is named or described
       { icon: '🔥', label: 'Lasciati guidare da lei…', lines: guide || ['Chiudi gli occhi... e fidati di me.', 'Mmh... vedo che hai capito.'], hearts: 3 },
     ];
+    const list = [...(only ? OPTS.filter((o) => only.includes(o.label)) : OPTS), ...extra];
     for (let r = 0; r < rounds; r++) {
-      const i = await hud.choose(`Cosa fai? ${'❤'.repeat(r + 1)}`, [...OPTS.map((o) => ({ icon: o.icon, label: o.label })), { icon: '➡️', label: r ? 'Continua' : 'Lascia fare a lei' }]);
-      if (i < 0 || i >= OPTS.length) break;
-      const o = OPTS[i];
+      const i = await hud.choose(`Cosa fai? ${'❤'.repeat(r + 1)}`, [...list.map((o) => ({ icon: o.icon, label: o.label })), { icon: '➡️', label: r ? 'Continua' : 'Lascia fare a lei' }]);
+      if (i < 0 || i >= list.length) break;
+      const o = list[i];
       const hs = [];
       for (let k = 0; k < (o.hearts || 1); k++) {
         const h = bubble('❤', '#ff3d68'); h.scale.setScalar(0.35);
@@ -521,13 +523,25 @@ export class Quests {
     const game = this.game, hud = game.hud, P = game.player;
     game.busy = true;
     const o = room.origin, y = room.bounds.y;
+    // candles and a warm, dim light for the evening
+    const mood = new THREE.Group();
+    const wax = new THREE.MeshStandardMaterial({ color: 0xfff3e0, roughness: 0.6 });
+    const flame = new THREE.MeshStandardMaterial({ color: 0xffb347, emissive: 0xff8c1a, emissiveIntensity: 3 });
+    for (const [cx, cz] of [[-2.6, -3.5], [-4.6, -1.0], [2.2, 0.6], [1.6, 0.4], [-0.6, -3.6]]) {
+      const c = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.22, 10), wax); c.position.set(o.x + cx, y + (cz > 0 ? 0.89 : 0.11), o.z + cz);
+      const f = new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.07, 8), flame); f.position.set(0, 0.15, 0); c.add(f);
+      mood.add(c);
+    }
+    const glow = new THREE.PointLight(0xff9a4d, 9, 9, 1.6); glow.position.set(o.x - 2.5, y + 1.2, o.z - 1.5); mood.add(glow);
+    game.scene.add(mood);
+    room.g.traverse((m) => { if (m.isPointLight) m.userData.base ??= m.intensity, m.intensity = m.userData.base * 0.35; });
     const her = makeCharacter({ hat: null, backpack: null, longHair: true, ...girl.look });
     her.position.set(o.x + 0.8, y, o.z + 0.4);
     game.scene.add(her);
     P.place(o.x - 0.6, o.z + 0.4, Math.PI / 2);
     const look = new THREE.Vector3(o.x + 0.1, y + 1.55, o.z + 0.4);
     game.cine = { pos: new THREE.Vector3(o.x + 0.1, y + 1.9, o.z + 3.2), look };
-    await hud.say(girl.name, girl.home);
+    await hud.say(girl.name, girl.homeLines?.() || girl.home);
     const heart = await this.kiss(P.model, her);
     await this.intimacy(her, 3, girl.name, girl.guide, girl.feet);
     await hud.say(girl.name, girl.undress.slice(0, 2));
@@ -563,7 +577,8 @@ export class Quests {
     await hud.say(girl.name, girl.end);
     hud.toast(`❤️ Tu e ${girl.name} siete una coppia`, 2600);
     // back on your feet
-    for (const o2 of [meU, herU, blanket, heart]) game.scene.remove(o2);
+    for (const o2 of [meU, herU, blanket, heart, mood]) game.scene.remove(o2);
+    room.g.traverse((m) => { if (m.isPointLight && m.userData.base) m.intensity = m.userData.base; });
     game.scene.remove(her);
     P.model.visible = true;
     P.place(o.x - 2, o.z, 0);
