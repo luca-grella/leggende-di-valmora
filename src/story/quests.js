@@ -11,6 +11,7 @@ import { bubble, beacon } from '../world/markers.js';
 import { buildCreature } from '../creatures/model.js';
 import { createMonster } from '../creatures/monster.js';
 import { add as addItem } from '../items.js';
+import { Staging, ACT } from './staging.js';
 
 const town = (id) => TOWNS.find((t) => t.region.id === id);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -439,7 +440,9 @@ export class Quests {
   // Tender moments with choices. Nothing explicit is ever shown or described.
   // feet: optional { massage, kiss, lick } reactions that fit her personality
   // extra: more choices for this moment; only: limit to these labels (public places)
-  async intimacy(her, rounds = 3, name = 'Marina', guide = null, feet = null, extra = [], only = null) {
+  // stage: optional { me, stage: 'stand' | 'seat' | 'bed' } so every choice is acted out
+  async intimacy(her, rounds = 3, name = 'Marina', guide = null, feet = null, extra = [], only = null, stage = null) {
+    const st = stage && new Staging({ game: this.game, her, me: stage.me, stage: stage.stage, anchor: her.position.clone(), face: Math.atan2(stage.me.position.x - her.position.x, stage.me.position.z - her.position.z) });
     const hud = this.game.hud;
     const OPTS = [
       { icon: '💋', label: 'Baciala', lines: ['Mmh... ancora.', 'Non smettere.', 'Baci come se fosse l\'ultima volta.'] },
@@ -469,7 +472,10 @@ export class Quests {
         h.position.copy(her.position).add(new THREE.Vector3((k - (o.hearts || 1) / 2 + 0.5) * 0.45, 2.0 + k * 0.15, 0));
         this.game.scene.add(h); hs.push(h);
       }
+      const stop = st ? await st.act(ACT[o.label] || 'other') : null;
+      hs.forEach((h) => h.position.set(her.position.x + (h.position.x - her.position.x), her.position.y + 2.0, her.position.z));
       await hud.say(name, o.hearts ? o.lines : [o.lines[Math.floor(Math.random() * o.lines.length)]]);
+      stop?.();
       hs.forEach((h) => this.game.scene.remove(h));
     }
   }
@@ -495,19 +501,23 @@ export class Quests {
   async dateScene(girl, spot, obj) {
     const game = this.game, hud = game.hud, P = game.player;
     game.busy = true;
-    const home = obj.position.clone();
-    obj.position.set(spot.x + 1.5, heightAt(spot.x + 1.5, spot.z), spot.z);
+    // stand-ins for both of you, so the scene can move them freely
+    obj.userData.out = true; obj.visible = false; P.model.visible = false;
+    const y = heightAt(spot.x, spot.z);
+    const me = makeCharacter({ hat: null, backpack: null }), her = makeCharacter({ hat: null, backpack: null, longHair: true, ...girl.look });
+    me.position.set(spot.x - 0.5, y, spot.z); me.rotation.y = Math.PI / 2;
+    her.position.set(spot.x + 1.5, heightAt(spot.x + 1.5, spot.z), spot.z); her.rotation.y = -Math.PI / 2;
+    game.scene.add(me, her);
     P.place(spot.x - 0.5, spot.z, Math.PI / 2);
-    const look = new THREE.Vector3(spot.x + 0.5, heightAt(spot.x, spot.z) + 1.5, spot.z);
+    const look = new THREE.Vector3(spot.x + 0.5, y + 1.5, spot.z);
     game.cine = { pos: new THREE.Vector3(spot.x + 0.5, look.y + 0.4, spot.z + 4), look };
     await hud.say(girl.name, girl.date);
-    const heart = await this.kiss(P.model, obj);
+    const heart = await this.kiss(me, her);
     await hud.say(girl.name, girl.afterKiss);
-    await this.intimacy(obj, 2, girl.name, girl.guide, girl.feet);
+    await this.intimacy(her, 2, girl.name, girl.guide, girl.feet, [], null, { me, stage: 'stand' });
     await hud.say(girl.name, girl.invite);
-    game.scene.remove(heart);
-    P.model.userData.body.rotation.x = obj.userData.body.rotation.x = 0;
-    obj.position.copy(home);
+    game.scene.remove(heart, me, her);
+    obj.userData.out = false; obj.visible = true; P.model.visible = true;
     game.cine = null;
     game.busy = false;
   }
@@ -539,18 +549,21 @@ export class Quests {
     her.position.set(o.x + 0.8, y, o.z + 0.4);
     game.scene.add(her);
     P.place(o.x - 0.6, o.z + 0.4, Math.PI / 2);
+    const meS = makeCharacter({ hat: null, backpack: null });
+    meS.position.set(o.x - 0.6, y, o.z + 0.4); meS.rotation.y = Math.PI / 2;
+    game.scene.add(meS); P.model.visible = false;
     const look = new THREE.Vector3(o.x + 0.1, y + 1.55, o.z + 0.4);
     game.cine = { pos: new THREE.Vector3(o.x + 0.1, y + 1.9, o.z + 3.2), look };
     await hud.say(girl.name, girl.homeLines?.() || girl.home);
-    const heart = await this.kiss(P.model, her);
-    await this.intimacy(her, 3, girl.name, girl.guide, girl.feet);
+    const heart = await this.kiss(meS, her);
+    await this.intimacy(her, 3, girl.name, girl.guide, girl.feet, [], null, { me: meS, stage: 'stand' });
     await hud.say(girl.name, girl.undress.slice(0, 2));
     // swap both to their underwear
     const meU = makeCharacter({ shirt: SKIN, pants: 0x1d3557, hat: null, backpack: null });
     const herU = makeCharacter({ hat: null, backpack: null, longHair: true, ...girl.look, shirt: girl.look.skin, pants: girl.under, top: girl.under });
-    for (const [from, to] of [[P.model, meU], [her, herU]]) { to.position.copy(from.position); to.rotation.copy(from.rotation); to.userData.body.rotation.x = 0.14; game.scene.add(to); from.visible = false; }
+    for (const [from, to] of [[meS, meU], [her, herU]]) { to.position.copy(from.position); to.rotation.copy(from.rotation); to.userData.body.rotation.x = 0.14; to.userData.setBarefoot(true); to.userData.barefoot = true; game.scene.add(to); from.visible = false; }
     await hud.say(girl.name, girl.undress.slice(2));
-    await this.intimacy(herU, 2, girl.name, girl.guide, girl.feet);
+    await this.intimacy(herU, 2, girl.name, girl.guide, girl.feet, [], null, { me: meU, stage: 'stand' });
     // into bed, under the blanket
     const bed = { x: o.x - 3.9, z: o.z - 2.7 };
     // the blanket covers them from the chest down
@@ -573,11 +586,11 @@ export class Quests {
     // from the foot of the bed: two heads on the pillows, the rest under the blanket
     game.cine = { pos: new THREE.Vector3(bed.x + 1.9, y + 2.5, bed.z + 1.2), look: new THREE.Vector3(bed.x, y + 1.15, bed.z - 0.45) };
     await hud.say(girl.name, girl.bed);
-    await this.intimacy(herU, 3, girl.name, girl.guide, girl.feet);
+    await this.intimacy(herU, 3, girl.name, girl.guide, girl.feet, [], ['Baciala', 'Accarezzale i capelli', 'Baciale il collo', 'Leccale il collo', "Mordicchiale l'orecchio", 'Stringila a te', "Sussurrale qualcosa all'orecchio", 'Lasciati guidare da lei…'], { me: meU, stage: 'bed' });
     await hud.say(girl.name, girl.end);
     hud.toast(`❤️ Tu e ${girl.name} siete una coppia`, 2600);
     // back on your feet
-    for (const o2 of [meU, herU, blanket, heart, mood]) game.scene.remove(o2);
+    for (const o2 of [meU, herU, blanket, heart, mood, meS]) game.scene.remove(o2);
     room.g.traverse((m) => { if (m.isPointLight && m.userData.base) m.intensity = m.userData.base; });
     game.scene.remove(her);
     P.model.visible = true;
@@ -597,7 +610,7 @@ export class Quests {
     this.t += dt;
     const game = this.game, P = game.player.pos, st = this.st;
     for (const n of this.npcs) {
-      n.obj.visible = !game.player.indoor && Math.abs(P.x - n.obj.position.x) < 260 && Math.abs(P.z - n.obj.position.z) < 260;
+      n.obj.visible = !n.obj.userData.out && !game.player.indoor && Math.abs(P.x - n.obj.position.x) < 260 && Math.abs(P.z - n.obj.position.z) < 260;
       if (!n.obj.visible) continue;
       n.obj.userData.animate(dt, 0);
       // a golden "!" over whoever has something for you

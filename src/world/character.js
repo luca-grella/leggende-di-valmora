@@ -93,16 +93,25 @@ export function makeCharacter({ skin = 0xf1c7a3, shirt = 0xd94a3d, pants = 0x2e3
     l.upper.position.set(s * 0.09, 0.93, 0);
     const shoe = part(new THREE.BoxGeometry(0.095, 0.07, 0.24), SH, 0, -0.45, 0.045);
     l.lower.add(shoe);
+    // a bare foot, shown instead of the shoe in some scenes
+    const foot = new THREE.Group(); foot.position.set(0, -0.455, 0.05); foot.visible = false; l.lower.add(foot);
+    const sole = part(new THREE.SphereGeometry(0.05, 12, 8), S, 0, 0, 0); sole.scale.set(0.85, 0.55, 2.3); foot.add(sole);
+    for (let i = 0; i < 5; i++) { const t = part(new THREE.SphereGeometry(0.012 + (i === 0 ? 0.006 : 0), 6, 5), S, -s * (0.026 - i * 0.012), -0.005, 0.105 - Math.abs(i - 0.5) * 0.006); foot.add(t); }
+    l.shoe = shoe; l.foot = foot;
     body.add(l.upper);
     return l;
   };
   const armL = arm(-1), armR = arm(1), legL = leg(-1), legR = leg(1);
   root.scale.setScalar(scale);
   root.userData.body = body;
+  // joints that scenes can pose directly (with userData.posed = true the walk cycle leaves them alone)
+  root.userData.limbs = { armL, armR, legL, legR, head };
+  root.userData.setBarefoot = (on) => { for (const l of [legL, legR]) { l.shoe.visible = !on; l.foot.visible = on; } };
 
   const lerp = THREE.MathUtils.lerp;
   let phase = 0;
   root.userData.animate = (dt, speed) => {
+    if (root.userData.posed) return;
     if (root.userData.sitting) { // riding: knees bent forward, hands on the handlebar
       legL.upper.rotation.x = legR.upper.rotation.x = -1.4;
       legL.lower.rotation.x = legR.lower.rotation.x = 1.45;

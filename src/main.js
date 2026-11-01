@@ -26,7 +26,7 @@ import { Player } from './player.js';
 import { Hud } from './ui/hud.js';
 import { Battle } from './battle/battle.js';
 import { SPECIES, STARTERS } from './creatures/species.js';
-import { createMonster, heal, nameOf } from './creatures/monster.js';
+import { createMonster, heal, nameOf, gainXp, xpForLevel } from './creatures/monster.js';
 
 const SAVE_KEY = 'valmora3d-save-v1';
 const $ = (id) => document.getElementById(id);
@@ -95,6 +95,15 @@ class Game {
     this.timer = new THREE.Timer();
 
     addEventListener('resize', () => this.resize());
+    addEventListener('keydown', (e) => {
+      if (!e.shiftKey || e.repeat) return;
+      if (e.code === 'KeyM') this.cheat('money');
+      if (e.code === 'KeyL') this.cheat('level');
+    });
+    // on the phone: three quick taps
+    const taps = (el, kind) => { let n = 0, t = 0; el.style.pointerEvents = 'auto'; el.addEventListener('pointerdown', () => { const now = performance.now(); n = now - t < 450 ? n + 1 : 1; t = now; if (n >= 3) { n = 0; this.cheat(kind); } }); };
+    taps($('money'), 'money');
+    taps($('team-strip'), 'level');
     window.valmora = this; // handy for debugging from the console
   }
 
@@ -110,6 +119,22 @@ class Game {
       if (s && s.v === 1) return { money: 300, beaten: {}, blaster: false, crimes: 0, bag: { pozione: 2 }, looted: {}, quests: {}, chests: {}, ...s };
     } catch { /* private mode or corrupted save: start fresh */ }
     return this.newState();
+  }
+
+  // Cheats: Shift+M (or triple tap on the money) = +1000 coins,
+  // Shift+L (or triple tap on the team) = the lead Velmon goes up one level.
+  cheat(kind) {
+    const st = this.state;
+    if (kind === 'money') { st.money += 1000; this.hud.setMoney(st.money); this.hud.toast('🪄 +1000 monete', 1500); }
+    if (kind === 'level') {
+      const m = st.party[0];
+      if (!m) return;
+      const ev = gainXp(m, Math.max(1, xpForLevel(m.level + 1) - m.xp));
+      const mv = ev.filter((e) => e.kind === 'move').map((e) => e.move);
+      this.hud.teamStrip(st.party);
+      this.hud.toast(`🪄 ${nameOf(m)} sale al livello ${m.level}!${mv.length ? ` Impara ${mv.join(', ')}.` : ''}`, 2200);
+    }
+    this.save();
   }
 
   // wipes the save and starts over from the beginning
@@ -320,6 +345,7 @@ class Game {
     this.romance.update(dt);
 
     const frozen = this.busy || this.hud.modal || this.battle.active;
+    document.body.classList.toggle('talking', !!(this.hud.modal || this.busy));
     if (!this.battle.active) {
       this.player.update(dt, input, this, frozen);
       // story scenes take over the camera: this.cine = { pos, look }
@@ -384,7 +410,10 @@ class Game {
   nearestInteraction() {
     if (this.player.vehicle) return { kind: 'dismount' };
     const P = this.player.pos;
-    if (this.grab.held) return this.grab.nearest(P);
+    if (this.grab.held) {
+      const person = [this.romance.nearest(P), this.quests.nearest(P), this.towns.nearestInteraction(P)].filter((x) => x && x.kind !== 'cura').sort((a, b) => a.d - b.d)[0];
+      return person || this.grab.nearest(P);
+    }
     const all = this.interiors.inside
       ? [this.interiors.nearest(P), this.grab.nearest(P)].filter(Boolean)
       : [this.towns.nearestInteraction(P), this.trainers.nearest(P), this.crime.nearest(P), this.interiors.nearest(P), this.grab.nearest(P), this.quests.nearest(P), this.props.nearest(P), this.romance.nearest(P)].filter(Boolean);

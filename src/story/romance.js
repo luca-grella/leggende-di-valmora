@@ -308,9 +308,10 @@ export class Romance {
     me.userData.animate(0, 0); her.userData.animate(0, 0);
     const look = new THREE.Vector3(spot.x, y + 1.1, spot.z);
     game.cine = { pos: new THREE.Vector3(spot.x + 2.4, y + 2.0, spot.z + 2.6), look };
+    if (kind === 'picnic') { me.position.y = her.position.y = y; } // on their feet on the blanket, the scene seats them as needed
     const b = st.bond?.[g.id] || 0;
     await hud.say(g.name, [rand(g.scene.date), ...sample(O.lines, 2), rand(BOND[bondTier(b)])]);
-    await game.quests.intimacy(her, 2, g.name, g.scene.guide, g.scene.feet, O.extra, O.only);
+    await game.quests.intimacy(her, 2, g.name, g.scene.guide, g.scene.feet, O.extra, O.only, { me, stage: kind === 'osteria' || kind === 'scooter' ? 'seat' : 'stand' });
     await hud.say(g.name, [rand(['Che bella serata...', 'Rifacciamolo presto, promesso?', 'Non volevo che finisse.', 'Mi hai fatta sentire speciale.']), rand(g.scene.invite)]);
     st.bond ??= {};
     st.bond[g.id] = b + 1;
@@ -337,7 +338,7 @@ export class Romance {
     this.t = (this.t || 0) + dt;
     for (const g of this.girls) {
       const o = g.obj;
-      if (g.out) { o.visible = false; continue; }
+      if (g.out || o.userData.out) { o.visible = false; continue; }
       o.visible = !game.player.indoor && Math.abs(P.x - o.position.x) < 260 && Math.abs(P.z - o.position.z) < 260;
       if (!o.visible) continue;
       o.userData.animate(dt, 0);
