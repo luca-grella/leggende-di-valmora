@@ -186,6 +186,14 @@ export const SPECIES = {
     desc: 'Le sue piume brillano come cristalli.',
   },
 
+  // ---------- the legendary Velmon of the story ----------
+  aurorante: {
+    name: 'Aurorante', types: ['Fuoco', 'Volante'], base: { hp: 106, atk: 110, def: 90, spd: 110 }, rate: 6, xp: 300, legendary: true,
+    learn: [[1, 'vampata'], [1, 'raffica'], [40, 'fiammata'], [45, 'uragano']],
+    model: { body: 0xffb347, belly: 0xfff3dc, shape: 'bird', size: 1.45, wings: true, tail: 'feather', beak: 0xffd23f, eye: 0x7a1f00, crest: 0xff5a00, extra: ['crown', 'flames'] },
+    desc: 'Si dice che ogni alba sia il battito delle sue ali.',
+  },
+
   // ---------- evolved forms (evo: the species evolves into `to` at `level`) ----------
   arbusto: {
     name: 'Arbusto', types: ['Erba'], base: { hp: 60, atk: 62, def: 63, spd: 60 }, rate: 45, xp: 142, evo: { to: 'silvarco', level: 32 },

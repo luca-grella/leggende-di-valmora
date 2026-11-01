@@ -267,7 +267,7 @@ export class Crime {
     if (i < 0 || i >= bets.length) return;
     const bet = bets[i];
     const top = Math.max(...st.party.map((m) => m.level));
-    const ids = Object.keys(SPECIES).filter((id) => !SPECIES[id].evo);
+    const ids = Object.keys(SPECIES).filter((id) => !SPECIES[id].evo && !SPECIES[id].legendary);
     const rnd = Math.random;
     const size = bet >= 1000 ? 3 : 2;
     const team = Array.from({ length: size }, () => createMonster(ids[Math.floor(rnd() * ids.length)], Math.max(5, top + (bet >= 1000 ? 3 : bet >= 300 ? 1 : -1) + Math.floor(rnd() * 3))));

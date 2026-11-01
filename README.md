@@ -22,7 +22,7 @@ La vecchia versione 2D (stile GBA) è salvata nel tag [`v1-2d`](../../tree/v1-2d
 - Strade che collegano i paesi, mare con onde, isole raggiungibili a nuoto.
 - **Ciclo giorno/notte** di 20 minuti: di notte si accendono finestre e lampioni ed escono più Velmon di tipo Spettro.
 - Ogni paese ha un **Centro Cura** (cura la squadra e ricarica le Sfere) e abitanti con cui parlare.
-- **44 specie di Velmon** in 11 tipi (20 di base e 24 forme evolute), con tabella delle efficacie, mosse imparate salendo di livello ed esperienza.
+- **45 specie di Velmon** in 11 tipi (20 di base, 24 forme evolute e il leggendario Aurorante), con tabella delle efficacie, mosse imparate salendo di livello ed esperienza.
 - **Evoluzioni**: raggiunto il livello giusto, a fine lotta il Velmon si evolve con un'animazione.
 - **Lotte a turni** nel punto dell'incontro, **cattura con le Sfere**, squadra di 6 e Box per gli altri.
 - **Allenatori**: due su ogni strada (ti vedono, compare "!" e vengono a sfidarti) e un campione in ogni paese.
@@ -38,10 +38,14 @@ La vecchia versione 2D (stile GBA) è salvata nel tag [`v1-2d`](../../tree/v1-2d
 - **Oggetti da prendere e lanciare** (vasi, mele, palle, libri, casse): colpire una guardia la lascia stordita.
 - **Storia**: Capitolo 1 "L'ombra dell'Eclissi" (Campione di Borgo Alba → Prof.ssa Quercia → Dott. Ginepro a Villa
   Petalo → accampamento dell'Eclissi) e Capitolo 2 "Il magazzino dell'Eclissi" (Er Faina → magazzino a sud di Città
-  Fulgida → Comandante Notte → Prof.ssa Quercia), che svela il Velmon leggendario Aurorante. **Missioni secondarie**: il Topolux di Nonna Rosa, Pane caldo, Re della strada,
+  Fulgida → Comandante Notte → Prof.ssa Quercia), che svela il Velmon leggendario Aurorante, e Capitolo 3 "Il santuario
+  dell'alba" (Guardiana Neve a Borgo Cristallo → santuario in cima ai Picchi Gelidi → Gran Maestro dell'Eclissi →
+  cattura del leggendario **Aurorante**). **Missioni secondarie**: il Topolux di Nonna Rosa, Pane caldo, Re della strada,
   Cacciatore di tesori, Collezionista e, se attivate le scene per adulti, "Una sera a Porto Corallo" con Marina.
   Diario 📜 Missioni nel menu Squadra; l'obiettivo seguito appare in basso e sulla mappa.
 - **Mondo più pieno**: accampamenti con campeggiatori, rovine, 35 forzieri nascosti, cartelli stradali, viaggiatori sulle strade.
+- **Grafica**: texture fotografiche CC0 da [Poly Haven](https://polyhaven.com) (prati, rocce, sabbia, ciottoli, intonaco,
+  tegole, corteccia, tessuti), luce ambientale presa dal cielo, persone con proporzioni realistiche.
 - **Contenuti per adulti** (18+): si sceglie all'avvio e si cambia dal menu Squadra. Niente nudità esplicita.
 - Salvataggio automatico nel browser e pulsante **💾 Salva** nel menu Squadra.
 
@@ -83,6 +87,6 @@ Ogni push su `master` pubblica il gioco su GitHub Pages (`.github/workflows/depl
 
 ## Prossimi passi
 
-- Capitolo 3 (il santuario di Aurorante sui Picchi Gelidi) e oltre; altre missioni secondarie e relazioni.
-- Grafica ancora più curata (modelli più dettagliati, animazioni, effetti).
+- Capitolo 4 e oltre (palestre e Lega di Valmora); altre missioni secondarie e relazioni.
+- Grafica ancora più curata (modelli più dettagliati, animazioni, effetti, acqua e alberi più realistici).
 - Palestre, la Lega di Valmora e Velmon leggendari; traghetti e cavalcature.

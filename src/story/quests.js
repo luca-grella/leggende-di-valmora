@@ -4,7 +4,7 @@
 
 import * as THREE from 'three';
 import { mulberry32 } from '../core/noise.js';
-import { TOWNS, heightAt } from '../world/heightfield.js';
+import { TOWNS, heightAt, slopeAt } from '../world/heightfield.js';
 import { makeCharacter } from '../world/character.js';
 import { findLand } from '../world/props.js';
 import { bubble } from '../world/markers.js';
@@ -20,7 +20,7 @@ export class Quests {
   constructor(game) {
     this.game = game;
     const rnd = mulberry32(2024);
-    const alba = town('aurora'), petalo = town('fiorita'), muschio = town('giada'), corallo = town('corallo'), fulgida = town('fulgida');
+    const alba = town('aurora'), petalo = town('fiorita'), muschio = town('giada'), corallo = town('corallo'), fulgida = town('fulgida'), cristallo = town('gelidi');
     this.camp = findLand(rnd, petalo.x, petalo.z, 320) || { x: petalo.x + 200, z: petalo.z };
     this.briciola = findLand(rnd, alba.x, alba.z, 260) || { x: alba.x + 150, z: alba.z + 80 };
     this.beach = this.findBeach(rnd, corallo) || { x: corallo.x + 120, z: corallo.z + 60 };
@@ -53,6 +53,14 @@ export class Quests {
     npc('eclissi3', 'Recluta dell\'Eclissi', grunt, this.depot.x - 4, this.depot.z + 9);
     npc('eclissi4', 'Recluta dell\'Eclissi', grunt, this.depot.x + 4, this.depot.z + 9);
     npc('notte', 'Comandante Notte', { shirt: 0x4a148c, pants: 0x111111, hat: 0x111111, hatBrim: 0x6a1b9a, backpack: null, longHair: true, hair: 0xd1c4e9 }, this.depot.x, this.depot.z + 6.5);
+    // Chapter 3: the sanctuary of Aurorante, high on the Picchi Gelidi
+    this.shrine = this.findPeak(rnd, cristallo);
+    this.buildShrine(this.shrine);
+    npc('neve', 'Guardiana Neve', { shirt: 0xeceff1, pants: 0x90a4ae, hat: null, backpack: null, longHair: true, hair: 0xf5f5f5 }, cristallo.x + 7, cristallo.z + 5);
+    npc('granmaestro', 'Gran Maestro dell\'Eclissi', { shirt: 0x1a0033, pants: 0x1a0033, hat: 0x6a1b9a, hatBrim: 0xffd23f, backpack: null }, this.shrine.x + 5, this.shrine.z + 5);
+    this.legend = buildCreature('aurorante');
+    this.legend.position.set(this.shrine.x, heightAt(this.shrine.x, this.shrine.z) + 1.2, this.shrine.z);
+    game.scene.add(this.legend);
     // Briciola, the lost Topolux
     this.pet = buildCreature('topolux');
     this.pet.position.set(this.briciola.x, heightAt(this.briciola.x, this.briciola.z), this.briciola.z);
@@ -79,6 +87,16 @@ export class Quests {
           { text: 'Racconta tutto alla Prof.ssa Quercia a Borgo Alba', at: () => ({ x: alba.x + 5, z: alba.z + 6 }) },
         ],
         reward: { money: 3000, items: { ravviva: 2, superpozione: 2 } },
+      },
+      main3: {
+        title: 'Capitolo 3 · Il santuario dell\'alba', main: true,
+        steps: [
+          { text: 'Vai a Borgo Cristallo (Picchi Gelidi) e parla con la Guardiana Neve', at: () => ({ x: cristallo.x + 7, z: cristallo.z + 5 }) },
+          { text: 'Sali al santuario di Aurorante, in cima ai monti', at: () => this.shrine, near: 18 },
+          { text: 'Sconfiggi il Gran Maestro dell\'Eclissi', at: () => this.shrine, done: (s) => s.beaten.granmaestro },
+          { text: 'Affronta Aurorante e prova a catturarlo', at: () => this.shrine, done: (s) => s.caught.aurorante },
+        ],
+        reward: { money: 5000, items: { ravviva: 3 } },
       },
       briciola: {
         title: 'Il Topolux di Nonna Rosa',
@@ -134,6 +152,41 @@ export class Quests {
     return true;
   }
 
+  // the highest gentle spot within reach of a town
+  findPeak(rnd, t) {
+    let best = null, bh = -1;
+    for (let i = 0; i < 400; i++) {
+      const a = rnd() * Math.PI * 2, r = 250 + rnd() * 450;
+      const x = t.x + Math.cos(a) * r, z = t.z + Math.sin(a) * r;
+      const h = heightAt(x, z);
+      if (h > bh && slopeAt(x, z) < 0.45) { bh = h; best = { x, z }; }
+    }
+    return best || { x: t.x + 300, z: t.z };
+  }
+
+  buildShrine(p) {
+    const g = new THREE.Group();
+    g.position.set(p.x, heightAt(p.x, p.z) - 0.2, p.z);
+    const stone = new THREE.MeshStandardMaterial({ color: 0xd8dde3, roughness: 0.7, flatShading: true });
+    const add = (geo, mt, x, y, z) => { const o = new THREE.Mesh(geo, mt); o.position.set(x, y, z); o.castShadow = o.receiveShadow = true; g.add(o); return o; };
+    add(new THREE.CylinderGeometry(8, 8.5, 0.6, 24), stone, 0, 0.3, 0);
+    for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; add(new THREE.CylinderGeometry(0.45, 0.55, 5, 8), stone, Math.cos(a) * 7, 2.8, Math.sin(a) * 7); }
+    add(new THREE.BoxGeometry(2.2, 1, 2.2), stone, 0, 1.0, 0);
+    add(new THREE.TorusGeometry(1.6, 0.12, 8, 32), new THREE.MeshStandardMaterial({ color: 0xffd23f, emissive: 0xffa000, emissiveIntensity: 1.2 }), 0, 4.5, 0).rotation.x = Math.PI / 2;
+    this.game.scene.add(g);
+  }
+
+  async faceLegend() {
+    const game = this.game, st = this.st;
+    if (st.quests.main3 !== 3) { await game.hud.say('', [st.beaten.granmaestro ? '...' : 'Aurorante ti osserva dall\'alto. Prima devi fermare l\'Eclissi.']); return; }
+    game.busy = true;
+    await game.hud.say('', ['Aurorante spalanca le ali. L\'aria si fa calda come a mezzogiorno.', 'Ti sta mettendo alla prova!']);
+    const out = await game.battle.start(createMonster('aurorante', 45));
+    if (out === 'caught') { this.legend.visible = false; this.check(); }
+    else if (out !== 'lose') { game.busy = true; await game.hud.say('', ['Aurorante si rialza e torna sull\'altare. Puoi riprovare quando vuoi.']); }
+    game.busy = false;
+  }
+
   findBeach(rnd, t) {
     for (let i = 0; i < 200; i++) {
       const a = rnd() * Math.PI * 2, r = 130 + rnd() * 250;
@@ -153,6 +206,8 @@ export class Quests {
     for (const id of ['strada', 'tesori', 'collezione']) st.quests[id] ??= 0;
     if (st.started) st.quests.main1 ??= 0;
     if (st.quests.main1 === 'done') st.quests.main2 ??= 0;
+    if (st.quests.main2 === 'done') st.quests.main3 ??= 0;
+    if (st.caught.aurorante) this.legend.visible = false;
     if (st.quests.briciola === 'done') this.pet.visible = false;
     this.check(true);
   }
@@ -220,6 +275,8 @@ export class Quests {
       const d = Math.hypot(pos.x - n.obj.position.x, pos.z - n.obj.position.z);
       if (d < 2.3 && (!best || d < best.d)) best = { kind: 'quest', n, d, hint: `A · Parla con ${n.name}` };
     }
+    const dl = Math.hypot(pos.x - this.legend.position.x, pos.z - this.legend.position.z);
+    if (this.legend.visible && dl < 4) best = { kind: 'legend', d: dl, hint: 'A · Avvicinati ad Aurorante' };
     const dp = Math.hypot(pos.x - this.pet.position.x, pos.z - this.pet.position.z);
     if (this.pet.visible && dp < 2 && this.st.quests.briciola === 0) best = { kind: 'pet', d: dp, hint: 'A · Prendi Briciola' };
     return best;
@@ -232,7 +289,8 @@ export class Quests {
     if (st.quests.main2 === 3) {
       await hud.say('Prof.ssa Quercia', ['Aurorante... il Velmon dell\'alba. Credevo fosse solo una leggenda.', 'Se l\'Eclissi riesce a catturarlo, potrà piegare il ciclo del giorno e della notte a suo piacimento.', 'Dobbiamo arrivare al santuario sui Picchi Gelidi prima di loro. Ma ti servirà una squadra fortissima. Allenati, e preparati al viaggio.']);
       this.advance('main2');
-      hud.banner('Continua nel Capitolo 3…', 'Capitolo 2 completato');
+      hud.banner('Inizia il Capitolo 3', 'Capitolo 2 completato');
+      this.start('main3');
       return true;
     }
     if (st.quests.main1 === 1) {
@@ -280,6 +338,23 @@ export class Quests {
             : ['Non finisce qui! Il capo ve la farà pagare!']);
           this.check();
         }
+        break;
+      }
+      case 'neve':
+        if (q.main3 === 0) {
+          await hud.say(n.name, ['Tu devi essere quello di cui parla la Professoressa. Ti aspettavo.', 'Il santuario di Aurorante è lassù, dove la neve non si scioglie mai. Da giorni vedo luci viola salire il sentiero.', 'L\'Eclissi è già in cammino. Sbrigati... e copriti bene.']);
+          this.advance('main3');
+        } else await hud.say(n.name, [q.main3 === 'done' ? 'L\'alba è tornata a essere libera. Grazie, allenatore.' : 'Il santuario è in cima ai monti. Segui il segnale sulla mappa.']);
+        break;
+      case 'granmaestro': {
+        if (q.main3 !== 2 || st.beaten.granmaestro) { await hud.say(n.name, [st.beaten.granmaestro ? 'L\'Eclissi... tramonta. Per ora.' : 'Non è ancora il tuo momento.']); break; }
+        await hud.say(n.name, ['Quindi sei tu. Il ragazzino che ha umiliato Notte.', 'Guarda, Aurorante è a un passo. Con lui l\'Eclissi deciderà quando sorge il sole su Valmora.', 'Ma prima ti toglierò di mezzo. Personalmente.']);
+        const top = Math.max(...st.party.map((m) => m.level));
+        const lv = Math.max(30, Math.min(top + 3, 55));
+        const team = ['tenebrale', 'vulcanide', 'abissale', 'colossasso'].map((id) => createMonster(id, lv));
+        const out = await game.battle.start(null, { trainer: { name: n.name, team, reward: 5000, fine: 500, obj: n.obj } });
+        n.obj.position.set(n.x, heightAt(n.x, n.z), n.z);
+        if (out === 'win') { st.beaten.granmaestro = true; game.busy = true; await hud.say(n.name, ['No... non è possibile.', 'Prendilo pure, se ci riesci. Aurorante non si piega a nessuno.']); this.check(); }
         break;
       }
       case 'rosa':
@@ -445,9 +520,16 @@ export class Quests {
       n.mark.visible = (n.id === 'rosa' && (q.briciola == null || q.briciola === 1)) || (n.id === 'fornaio' && q.pane == null) || (n.id === 'fornaia' && q.pane === 0)
         || (n.id === 'ginepro' && (q.main1 === 2 || q.main1 === 4)) || ((n.id === 'eclissi1' || n.id === 'eclissi2') && q.main1 === 3 && !st.beaten[n.id])
         || ((n.id === 'eclissi3' || n.id === 'eclissi4') && q.main2 === 1 && !st.beaten[n.id]) || (n.id === 'notte' && q.main2 === 2)
+        || (n.id === 'neve' && q.main3 === 0) || (n.id === 'granmaestro' && q.main3 === 2)
         || (n.id === 'marina' && st.adult && (q.marina == null || q.marina === 0));
     }
     if (this.pet.visible) this.pet.userData.animate(dt);
+    if (this.legend.visible && Math.abs(P.x - this.legend.position.x) < 300 && Math.abs(P.z - this.legend.position.z) < 300) this.legend.userData.animate(dt);
+    // "go there" steps complete on arrival
+    for (const [id, s] of this.active()) {
+      const step = this.Q[id].steps[s], at = step?.near && step.at();
+      if (at && Math.hypot(P.x - at.x, P.z - at.z) < step.near) this.advance(id);
+    }
     if (this.t > 0.5) {
       this.t = 0;
       this.check();

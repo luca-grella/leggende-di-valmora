@@ -235,6 +235,7 @@ class Game {
     if (['door', 'exit', 'rummage', 'shop', 'resident'].includes(it.kind)) return this.interiors.interact(it);
     if (it.kind === 'quest') return this.quests.talk(it.n);
     if (it.kind === 'pet') return this.quests.petFound();
+    if (it.kind === 'legend') return this.quests.faceLegend();
     if (it.kind === 'chest') return this.props.open(it.c);
     if (it.kind === 'propnpc') return this.props.talk(it.n);
     if (it.kind === 'grab') { this.grab.pick(it.it); return; }
